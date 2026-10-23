@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Мессенджер</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--acc:#0078d7;--bg:#fff;--text:#000;--sub:#6b6b6b;--in:#e6e6e6;--out:#cce4f7;--line:#d0d0d0;--bar:#f2f2f2}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--text:#fff;--sub:#9a9a9a;--in:#2b2b2b;--out:#0b4f86;--line:#333;--bar:#1f1f1f}}
+*{box-sizing:border-box;border-radius:0}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:15px/1.35 "Segoe UI",-apple-system,Roboto,sans-serif;display:flex;flex-direction:column}
+.screen{display:none;flex:1;flex-direction:column;min-height:0}
+.screen.on{display:flex}
+header{background:var(--acc);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:14px;font-size:20px;font-weight:300}
+header .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{background:none;border:0;color:#fff;font-size:22px;padding:0 4px}
+.scroll{flex:1;overflow-y:auto}
+.row{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:active{background:var(--bar)}
+.av{width:48px;height:48px;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;flex:none}
+.av.s{width:32px;height:32px;font-size:18px}
+.rt{flex:1;min-width:0}
+.rt b{display:flex;justify-content:space-between;font-weight:600}
+.rt b i{font-style:normal;font-weight:400;color:var(--sub);font-size:12px}
+.rt div{color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#msgs{padding:10px;display:flex;flex-direction:column;gap:6px}
+.mw{display:flex;gap:6px;align-items:flex-end;max-width:88%;align-self:flex-start}
+.mw.me{align-self:flex-end}
+.m{padding:6px 10px;background:var(--in);overflow-wrap:anywhere}
+.mw.me .m{background:var(--out)}
+.m small{display:block;color:var(--acc);font-weight:600;font-size:12px}
+.mw.me .m small{display:none}
+.m time{display:block;text-align:right;color:var(--sub);font-size:11px}
+.bar{display:flex;background:var(--bar);border-top:1px solid var(--line);padding:8px;gap:8px}
+input{border:2px solid var(--line);background:var(--bg);color:var(--text);padding:10px;font:inherit;min-width:0}
+input:focus{outline:0;border-color:var(--acc)}
+.bar input{flex:1}
+.bar button{background:var(--acc);color:#fff;border:0;width:48px;font-size:20px}
+.form{margin:auto;width:min(340px,92%);display:flex;flex-direction:column;gap:10px;padding:16px 0}
+.form h2{font-weight:300;font-size:28px;margin:0}
+.btn{background:var(--acc);color:#fff;border:0;padding:12px;font:inherit}
+.btn.g{background:var(--bar);color:var(--text);border:1px solid var(--line)}
+.tabs{display:flex}.tabs button{flex:1;padding:10px;border:0;background:var(--bar);color:var(--sub);font:inherit}
+.tabs button.on{background:var(--acc);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.grid div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--bar);cursor:pointer;border:2px solid transparent}
+.grid div.sel{border-color:var(--acc);background:var(--out)}
+.err{color:#d13438;min-height:1.2em;font-size:13px}
+.empty{color:var(--sub);text-align:center;margin:auto;padding:20px}
+</style>
+</head>
+<body>
+
+<div class="screen on" id="auth"><div class="form">
+  <h2>Мессенджер</h2>
+  <div class="tabs"><button id="tl" class="on">Вход</button><button id="tr">Регистрация</button></div>
+  <input id="email" type="email" placeholder="Почта" autocomplete="email">
+  <input id="pass" type="password" placeholder="Пароль (от 6 символов)" autocomplete="current-password">
+  <div id="regbox" style="display:none;flex-direction:column;gap:10px">
+    <input id="uname" maxlength="24" placeholder="Ваше имя">
+    <div style="color:var(--sub)">Выберите аватар</div>
+    <div class="grid" id="grid1"></div>
+  </div>
+  <div class="err" id="err"></div>
+  <button class="btn" id="submit">Войти</button>
+</div></div>
+
+<div class="screen" id="list">
+  <header><span class="t">Чаты</span><button id="new" title="Новый чат">＋</button><button id="me" title="Профиль">👤</button></header>
+  <div class="scroll" id="rooms"></div>
+</div>
+
+<div class="screen" id="chat">
+  <header><button id="back">←</button><span class="t" id="title"></span></header>
+  <div class="scroll" id="msgs"></div>
+  <div class="bar"><input id="text" maxlength="500" placeholder="Сообщение" style="flex:1"><button id="send">➤</button></div>
+</div>
+
+<div class="screen" id="prof">
+  <header><button id="pback">←</button><span class="t">Профиль</span></header>
+  <div class="scroll"><div class="form">
+    <div class="av" style="width:80px;height:80px;font-size:44px;align-self:center" id="pav"></div>
+    <input id="pname" maxlength="24" placeholder="Имя">
+    <div class="grid" id="grid2"></div>
+    <div class="err" id="perr"></div>
+    <button class="btn" id="psave">Сохранить</button>
+    <button class="btn g" id="logout">Выйти</button>
+  </div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// ВСТАВЬТЕ СВОИ ДАННЫЕ из Supabase: Project Settings → API
+const SUPABASE_URL = "https://fwkcgyxmgzsixjgmpnut.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3a2NneXhtZ3pzaXhqZ21wbnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3NjYyMjUsImV4cCI6MjEwODM0MjIyNX0.mn8BY9rF-tuSjUMk8LwJx6IFVVPFiDLKOvqloP8kWMc";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const AVATARS = "😀 😎 🤓 🥳 😺 🐶 🦊 🐼 🐸 🦁 🐵 🐧 🚀 ⚡ 🔥 🌈 🎧 🎮 ⚽ 🍕 🌵 🍀 👾 🤖".split(" ");
+const DEFAULT = "Общий чат";
+let me = null, cur = null, all = [], prof = {}, mode = "login";
+let regAv = AVATARS[0], profAv = AVATARS[0];
+
+const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
+const show = id => document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
+const who = id => prof[id] || {username: "…", avatar: "👤"};
+
+function grid(el, get, set) {
+  el.textContent = "";
+  AVATARS.forEach(a => {
+    const d = document.createElement("div"); d.textContent = a;
+    if (a === get()) d.classList.add("sel");
+    d.onclick = () => { set(a); grid(el, get, set); };
+    el.appendChild(d);
+  });
+}
+const avEl = (a, small) => { const d = document.createElement("div"); d.className = "av" + (small ? " s" : ""); d.textContent = a; return d; };
+
+/* ---------- вход / регистрация ---------- */
+function setMode(m) {
+  mode = m;
+  $("tl").classList.toggle("on", m === "login"); $("tr").classList.toggle("on", m === "reg");
+  $("regbox").style.display = m === "reg" ? "flex" : "none";
+  $("submit").textContent = m === "reg" ? "Зарегистрироваться" : "Войти";
+  $("pass").autocomplete = m === "reg" ? "new-password" : "current-password";
+  $("err").textContent = "";
+}
+async function submit() {
+  const email = $("email").value.trim(), password = $("pass").value;
+  $("err").textContent = "";
+  if (!email || password.length < 6) { $("err").textContent = "Введите почту и пароль от 6 символов"; return; }
+  if (mode === "reg") {
+    const username = $("uname").value.trim();
+    if (!username) { $("err").textContent = "Введите имя"; return; }
+    const {data, error} = await sb.auth.signUp({email, password, options: {data: {username, avatar: regAv}}});
+    if (error) { $("err").textContent = error.message; return; }
+    if (!data.session) { setMode("login"); $("err").textContent = "Мы отправили письмо. Подтвердите почту и войдите."; return; }
+    enter(data.session.user);
+  } else {
+    const {data, error} = await sb.auth.signInWithPassword({email, password});
+    if (error) { $("err").textContent = "Неверная почта или пароль"; return; }
+    enter(data.user);
+  }
+}
+
+/* ---------- чаты ---------- */
+async function loadProfiles(ids) {
+  const miss = [...new Set(ids)].filter(i => i && !prof[i]);
+  if (!miss.length) return;
+  const {data} = await sb.from("profiles").select("*").in("id", miss);
+  (data || []).forEach(p => prof[p.id] = p);
+}
+
+function renderRooms() {
+  const last = {};
+  all.forEach(m => last[m.room] = m);
+  if (!last[DEFAULT]) last[DEFAULT] = {room: DEFAULT, text: "Сообщений пока нет", created_at: null};
+  const box = $("rooms"); box.textContent = "";
+  Object.values(last).sort((a, b) => (b.created_at || "") > (a.created_at || "") ? 1 : -1).forEach(m => {
+    const r = document.createElement("div"); r.className = "row";
+    const rt = document.createElement("div"); rt.className = "rt";
+    const b = document.createElement("b"), n = document.createElement("span"), i = document.createElement("i");
+    n.textContent = m.room; i.textContent = m.created_at ? hm(m.created_at) : ""; b.append(n, i);
+    const d = document.createElement("div"); d.textContent = (m.user_id ? who(m.user_id).username + ": " : "") + m.text;
+    rt.append(b, d);
+    r.append(avEl(m.room[0].toUpperCase()), rt);
+    r.onclick = () => open(m.room);
+    box.appendChild(r);
+  });
+}
+
+function renderChat() {
+  const box = $("msgs"); box.textContent = "";
+  const list = all.filter(m => m.room === cur);
+  if (!list.length) { const e = document.createElement("div"); e.className = "empty"; e.textContent = "Здесь пока пусто. Напишите первым!"; box.appendChild(e); return; }
+  list.forEach(m => {
+    const mine = m.user_id === me.id, p = who(m.user_id);
+    const w = document.createElement("div"); w.className = "mw" + (mine ? " me" : "");
+    const d = document.createElement("div"); d.className = "m";
+    const s = document.createElement("small"); s.textContent = p.username;
+    const t = document.createElement("span"); t.textContent = m.text;
+    const c = document.createElement("time"); c.textContent = hm(m.created_at);
+    d.append(s, t, c);
+    if (!mine) w.append(avEl(p.avatar, true));
+    w.append(d); box.appendChild(w);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+function open(room) { cur = room; $("title").textContent = room; show("chat"); renderChat(); }
+
+async function enter(user) {
+  let {data} = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  if (!data) data = {id: user.id, username: user.user_metadata?.username || "user", avatar: user.user_metadata?.avatar || AVATARS[0]};
+  me = data; prof[me.id] = me;
+  show("list");
+  const r = await sb.from("messages").select("*").order("created_at", {ascending: false}).limit(500);
+  all = (r.data || []).reverse();
+  await loadProfiles(all.map(m => m.user_id));
+  renderRooms();
+  sb.channel("all").on("postgres_changes", {event: "INSERT", schema: "public", table: "messages"}, async p => {
+    await loadProfiles([p.new.user_id]);
+    all.push(p.new); renderRooms();
+    if (cur === p.new.room && $("chat").classList.contains("on")) renderChat();
+  }).subscribe();
+}
+
+async function send() {
+  const v = $("text").value.trim(); if (!v || !cur) return;
+  $("text").value = "";
+  const {error} = await sb.from("messages").insert({room: cur, user_id: me.id, text: v});
+  if (error) { $("text").value = v; alert("Не отправлено: " + error.message); }
+}
+
+/* ---------- профиль ---------- */
+function openProfile() {
+  profAv = me.avatar; $("pname").value = me.username; $("pav").textContent = profAv; $("perr").textContent = "";
+  grid($("grid2"), () => profAv, a => { profAv = a; $("pav").textContent = a; });
+  show("prof");
+}
+async function saveProfile() {
+  const username = $("pname").value.trim();
+  if (!username) { $("perr").textContent = "Введите имя"; return; }
+  const {error} = await sb.from("profiles").update({username, avatar: profAv}).eq("id", me.id);
+  if (error) { $("perr").textContent = error.message; return; }
+  me.username = username; me.avatar = profAv; prof[me.id] = me;
+  renderRooms(); show("list");
+}
+
+/* ---------- запуск ---------- */
+$("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
+$("submit").onclick = submit;
+$("pass").onkeydown = e => e.key === "Enter" && submit();
+$("text").onkeydown = e => e.key === "Enter" && send();
+$("send").onclick = send;
+$("back").onclick = () => { cur = null; renderRooms(); show("list"); };
+$("new").onclick = () => { const r = (prompt("Название нового чата") || "").trim().slice(0, 30); if (r) open(r); };
+$("me").onclick = openProfile;
+$("pback").onclick = () => show("list");
+$("psave").onclick = saveProfile;
+$("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+grid($("grid1"), () => regAv, a => regAv = a);
+sb.auth.getSession().then(({data}) => { if (data.session) enter(data.session.user); });
+</script>
+</body>
+</html>
