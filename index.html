@@ -93,7 +93,7 @@ input[type=checkbox]{padding:0;width:20px;height:20px}
   <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
-  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
+  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
   <div class="bar ro" id="robar" style="display:none">В этом канале пишет только владелец</div>
   <input type="file" id="mfile" accept="image/*,video/*" style="display:none">
 </div>
@@ -237,6 +237,7 @@ function avEl(p, small) {
 }
 function cAv(c, small) {
   if (c.kind === "dm") return avEl(who(c.other), small);
+  if (c.kind === "saved") return el("div", "av" + (small ? " s" : ""), "🔖");
   const d = el("div", "av" + (small ? " s" : ""));
   if (c.avatar_url) { const i = el("img"); i.src = c.avatar_url; d.appendChild(i); } else d.textContent = c.kind === "channel" ? "📢" : "👥";
   return d;
@@ -387,19 +388,22 @@ function renderList() {
   const last = {}; all.forEach(m => last[m.chat_id] = m);
   const items = [...mem].map(id => chats[id]).filter(Boolean)
     .sort((a, b) => ((last[b.id]?.created_at || b.created_at) > (last[a.id]?.created_at || a.created_at)) ? 1 : -1);
-  if (!items.length) { box.appendChild(el("div", "empty", "Чатов пока нет. Создайте группу или канал кнопкой ＋ либо найдите чат или человека через 🔍.")); return; }
+  if (!items.length) box.appendChild(el("div", "lbl", "  Чатов пока нет. Создайте группу или канал кнопкой ＋ либо найдите чат или человека через 🔍."));
+  if (!items.some(c => c.kind === "saved")) items.push({id: "__saved", kind: "saved", title: "Избранное"});
+  items.sort((a, b) => (b.kind === "saved") - (a.kind === "saved"));
   items.forEach(c => {
     const m = last[c.id], rt = el("div", "rt"), b = el("b");
     b.append(el("span", "", cTitle(c)), el("i", "", m ? hm(m.created_at) : ""));
-    rt.append(b, el("div", "", m ? who(m.user_id).username + badge(who(m.user_id)) + ": " + prev(m) : (c.kind === "channel" ? "Канал" : c.kind === "dm" ? "Личный чат" : "Группа")));
-    const r = el("div", "row"); r.append(cAv(c), rt); r.onclick = () => open(c.id); box.appendChild(r);
+    rt.append(b, el("div", "", m ? who(m.user_id).username + badge(who(m.user_id)) + ": " + prev(m) : (c.kind === "channel" ? "Канал" : c.kind === "dm" ? "Личный чат" : c.kind === "saved" ? "Заметки для себя" : "Группа")));
+    const r = el("div", "row"); r.append(cAv(c), rt); r.onclick = () => c.id === "__saved" ? openSaved() : open(c.id); box.appendChild(r);
   });
 }
 function renderChat() {
   const c = chats[cur], box = $("msgs"); box.textContent = ""; applyWp();
-  $("title").textContent = cTitle(c);
+  $("title").textContent = cTitle(c); $("giftb").style.display = c.kind === "dm" ? "" : "none";
   $("cdesc").textContent = c.kind === "dm" ? seen(who(c.other).last_seen)
     : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
+  if (c.kind === "saved") $("cdesc").textContent = "Заметки и файлы только для вас";
   const can = c.kind !== "channel" || c.owner_id === me.id;
   $("cbar").style.display = can ? "" : "none"; $("robar").style.display = can ? "none" : "";
   const list = all.filter(m => m.chat_id === cur);
@@ -413,7 +417,7 @@ function renderChat() {
       else { const i = el("img"); i.src = m.media_url; i.onclick = () => window.open(m.media_url, "_blank"); d.append(i); }
     }
     if (m.text) d.append(el("span", "", m.text));
-    const canManage = mine || c.owner_id === me.id || me.is_admin;
+    const canManage = true;
     const tm = el("time", canManage ? "mt" : "", (m.edited ? "изм. " : "") + hm(m.created_at) + (canManage ? "  ⋯" : ""));
     if (canManage) tm.onclick = () => msgMenu(m);
     d.append(tm);
@@ -510,7 +514,7 @@ async function search() {
     });
     return;
   }
-  let qq = sb.from("chats").select("*").neq("kind", "dm").order("created_at", {ascending: false}).limit(30);
+  let qq = sb.from("chats").select("*").not("kind", "in", "(dm,saved)").order("created_at", {ascending: false}).limit(30);
   if (q) qq = qq.or("title.ilike.%" + q + "%,handle.ilike.%" + q + "%");
   const {data} = await qq;
   if (!data || !data.length) { box.appendChild(el("div", "empty", "Ничего не найдено")); return; }
@@ -631,7 +635,7 @@ async function openAdmin() {
   const box = $("abox"); box.textContent = "";
   const [u, c, gq] = await Promise.all([
     sb.from("profiles").select("*").order("username").limit(200),
-    sb.from("chats").select("*").neq("kind", "dm").order("created_at", {ascending: false}).limit(100),
+    sb.from("chats").select("*").not("kind", "in", "(dm,saved)").order("created_at", {ascending: false}).limit(100),
     sb.from("gifts").select("*").order("price")]);
   const users = u.data || [], cl = c.data || [];
   const call = async (fn, args) => { const {error} = await sb.rpc(fn, args); if (error) alert(error.message); else openAdmin(); };
@@ -661,6 +665,7 @@ async function openAdmin() {
     const emoji = (prompt("Эмодзи подарка", "🎁") || "").trim(); if (!emoji) return;
     const name = (prompt("Название подарка") || "").trim(); if (!name) return;
     const price = parseInt(prompt("Цена в звёздах", "25"), 10); if (!price || price < 1) return;
+    if (price > 10000000) { alert("Максимум 10 000 000 ⭐"); return; }
     const {error} = await sb.from("gifts").insert({name, emoji, price}); if (error) alert(error.message); else openAdmin();
   };
   box.append(ng);
@@ -703,9 +708,11 @@ const closeMenu = () => { $("ms").style.display = "none"; };
 function msgMenu(m) {
   const b = $("msb"); b.textContent = "";
   if (m.user_id === me.id && m.text) { const e = el("button", "btn", "Изменить"); e.onclick = () => { closeMenu(); editMsg(m); }; b.append(e); }
+  const canDel = m.user_id === me.id || me.is_admin || (chats[m.chat_id] && chats[m.chat_id].owner_id === me.id);
+  const fv = el("button", "btn g", "🔖 В избранное"); fv.onclick = () => { closeMenu(); toFav(m); };
   const d = el("button", "btn g", "Удалить"); d.onclick = () => { closeMenu(); delMsg(m); };
   const c = el("button", "btn g", "Отмена"); c.onclick = closeMenu;
-  b.append(d, c); $("ms").style.display = "flex";
+  b.append(fv); if (canDel) b.append(d); b.append(c); $("ms").style.display = "flex";
 }
 async function editMsg(m) {
   const t = prompt("Изменить сообщение", m.text); if (t === null) return;
@@ -720,6 +727,19 @@ async function delMsg(m) {
   const {error} = await sb.from("messages").delete().eq("id", m.id);
   if (error) { alert(error.message); return; }
   all = all.filter(x => x.id !== m.id); renderList(); renderChat();
+}
+
+async function openSaved() {
+  const {data, error} = await sb.rpc("get_saved"); if (error) { alert(error.message); return; }
+  await loadChats(); open(data);
+}
+async function toFav(m) {
+  const {data, error} = await sb.rpc("get_saved"); if (error) { alert(error.message); return; }
+  const row = {chat_id: data, user_id: me.id, text: m.text || ""};
+  if (m.media_url) { row.media_url = m.media_url; row.media_type = m.media_type; }
+  const r = await sb.from("messages").insert(row);
+  if (r.error) { alert(r.error.message); return; }
+  await loadChats(); alert("Сохранено в Избранное");
 }
 
 /* ---------- обои ---------- */
@@ -784,9 +804,10 @@ async function buyPremium() {
 }
 
 /* ---------- подарки ---------- */
-let giftTo = null;
+let giftTo = null, giftBack = "usr";
+function goBackGift() { if (giftBack === "chat" && cur) { show("chat"); renderChat(); } else openUser(giftTo); }
 async function openGifts(uid) {
-  giftTo = uid; show("gf"); await refreshMe();
+  giftTo = uid; giftBack = scr; show("gf"); await refreshMe();
   const b = $("gbox"); b.textContent = "";
   b.append(el("div", "lbl", "  Баланс: ⭐ " + (me.stars || 0) + " · получатель: " + who(uid).username));
   const {data} = await sb.from("gifts").select("*").order("price");
@@ -805,7 +826,7 @@ async function sendGift(g) {
     const d = await sb.rpc("get_dm", {other: giftTo});
     if (d.data) await sb.from("messages").insert({chat_id: d.data, user_id: me.id, text: "🎁 Подарок: " + g.emoji + " " + g.name});
   } catch (e) {}
-  await refreshMe(); await loadChats(); openUser(giftTo);
+  await refreshMe(); await loadChats(); goBackGift();
 }
 
 /* ---------- запуск ---------- */
@@ -814,7 +835,7 @@ $("submit").onclick = submit; $("pass").onkeydown = e => e.key === "Enter" && su
 $("text").onkeydown = e => e.key === "Enter" && send(); $("send").onclick = () => send();
 $("attach").onclick = () => $("mfile").click(); $("mfile").onchange = attach;
 $("back").onclick = () => { cur = null; renderList(); show("list"); loadStories(); };
-$("title").onclick = () => { const c = chats[cur]; if (c.kind === "dm") openUser(c.other); else openInfo(); };
+$("title").onclick = () => { const c = chats[cur]; if (c.kind === "dm") openUser(c.other); else if (c.kind !== "saved") openInfo(); };
 $("new").onclick = () => { ["ctitle", "chandle", "cdescin"].forEach(i => $(i).value = ""); $("cerr").textContent = ""; setKind("group"); show("nc"); };
 $("ncback").onclick = () => show("list");
 $("kg").onclick = () => setKind("group"); $("kc").onclick = () => setKind("channel");
@@ -831,7 +852,7 @@ $("sfile").onchange = addStory;
 $("svm").onclick = e => { if (e.offsetX < e.currentTarget.clientWidth / 3) { sv.i = Math.max(0, sv.i - 1); showStory(); } else nextStory(); };
 $("adm").onclick = openAdmin; $("aback").onclick = () => show("list");
 $("shop").onclick = openShop; $("shopback").onclick = () => show("list");
-$("gfback").onclick = () => openUser(giftTo);
+$("gfback").onclick = goBackGift; $("giftb").onclick = () => openGifts(chats[cur].other);
 $("wpb").onclick = openWp; $("wpback").onclick = () => { show("chat"); renderChat(); };
 $("wpup").onclick = () => $("wpfile").click();
 $("wpfile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { const bl = await shrink(f, 1080, false); const r = new FileReader(); r.onload = () => setWp(r.result); r.readAsDataURL(bl); } catch (x) { alert(x.message); } };
