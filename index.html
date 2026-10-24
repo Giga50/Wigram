@@ -56,6 +56,11 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}input:disabled,text
 #svm{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
 #svm img,#svm video{max-width:100%;max-height:100%}
 #svc{padding:12px;text-align:center;min-height:2.5em}
+#ms{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:11;align-items:center;justify-content:center}
+#msb{background:var(--bg);padding:16px;width:min(300px,90%);display:flex;flex-direction:column;gap:8px}
+input[type=checkbox]{padding:0;width:20px;height:20px}
+.wpt{aspect-ratio:1;display:flex;align-items:flex-end;font-size:11px;padding:4px;color:#fff;cursor:pointer;border:2px solid var(--line)}
+.m time.mt{cursor:pointer;padding:2px 0}
 </style>
 </head>
 <body>
@@ -78,14 +83,14 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}input:disabled,text
 </div></div>
 
 <div class="screen" id="list">
-  <header><span class="t">Чаты</span><button id="adm" style="display:none">🛡</button><button id="find">🔍</button><button id="new">＋</button><button id="me">👤</button></header>
+  <header><span class="t">Чаты</span><button id="shop">⭐</button><button id="adm" style="display:none">🛡</button><button id="find">🔍</button><button id="new">＋</button><button id="me">👤</button></header>
   <div id="stories"></div>
   <div class="scroll" id="rooms"></div>
   <input type="file" id="sfile" accept="image/*,video/*" style="display:none">
 </div>
 
 <div class="screen" id="chat">
-  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span></header>
+  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
   <div class="bar" id="cbar"><button class="g" id="attach">📎</button><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
@@ -162,6 +167,30 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}input:disabled,text
   </div></div>
 </div>
 
+<div class="screen" id="shopscr">
+  <header><button id="shopback">←</button><span class="t">Звёзды и Премиум</span></header>
+  <div class="scroll"><div class="form" id="shopbox"></div></div>
+</div>
+
+<div class="screen" id="gf">
+  <header><button id="gfback">←</button><span class="t">Подарки</span></header>
+  <div class="scroll" id="gbox"></div>
+</div>
+
+<div class="screen" id="wp">
+  <header><button id="wpback">←</button><span class="t">Обои чата</span></header>
+  <div class="scroll"><div class="form">
+    <div class="grid" id="wpgrid" style="grid-template-columns:repeat(4,1fr)"></div>
+    <button class="btn" id="wpup">Загрузить своё фото</button>
+    <input type="file" id="wpfile" accept="image/*" style="display:none">
+    <label class="lbl" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="wpall"> Применить ко всем чатам</label>
+    <button class="btn g" id="wpreset">Сбросить обои</button>
+    <div class="lbl">Обои сохраняются на этом устройстве.</div>
+  </div></div>
+</div>
+
+<div id="ms"><div id="msb"></div></div>
+
 <div id="sv">
   <div id="svh"></div>
   <div id="svm"></div>
@@ -187,7 +216,10 @@ let scr = "auth", prevScr = "auth", sv = {list: [], i: 0, t: null};
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
 function show(id) { prevScr = scr; scr = id; document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); }
 const who = id => prof[id] || {username: "…", avatar: "👤"};
-const badge = p => p && p.verified ? " ✔" : "";
+const PREM = "👑 💎 🦄 🐉 🔮 🌟 🎭 🪐 🦋 🦅 🐺 🌙".split(" ");
+function isPrem(p) { return !!(p && p.premium_until && new Date(p.premium_until) > new Date()); }
+const avList = () => me && isPrem(me) ? AV.concat(PREM) : AV;
+const badge = p => (p && p.verified ? " ✔" : "") + (isPrem(p) ? " 💎" : "");
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 const clean = s => s.trim().toLowerCase().replace(/^@/, "");
 
@@ -213,7 +245,7 @@ const cTitle = c => c.kind === "dm" ? who(c.other).username + badge(who(c.other)
 const prev = m => m.text || (m.media_type === "video" ? "🎬 Видео" : "📷 Фото");
 function grid(box, get, set) {
   box.textContent = "";
-  AV.forEach(a => { const d = el("div", a === get() ? "sel" : "", a); d.onclick = () => { set(a); grid(box, get, set); }; box.appendChild(d); });
+  avList().forEach(a => { const d = el("div", a === get() ? "sel" : "", a); d.onclick = () => { set(a); grid(box, get, set); }; box.appendChild(d); });
 }
 
 /* ---------- файлы ---------- */
@@ -235,7 +267,8 @@ function shrink(file, max, square) {
 async function mediaUpload(f) {
   const vid = f.type.startsWith("video/");
   if (!vid && !f.type.startsWith("image/")) throw new Error("Можно только фото и видео");
-  if (vid && f.size > 40 * 1024 * 1024) throw new Error("Видео больше 40 МБ");
+  const lim = isPrem(me) ? 40 : 10;
+  if (vid && f.size > lim * 1024 * 1024) throw new Error("Видео больше " + lim + " МБ" + (lim < 40 ? " (с Премиумом до 40 МБ)" : ""));
   let blob = f, ct = f.type, ext = (f.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
   if (!vid) { blob = await shrink(f, 1280, false); ct = "image/jpeg"; ext = "jpg"; }
   const path = me.id + "/" + crypto.randomUUID() + "." + ext;
@@ -339,6 +372,11 @@ async function enter(user) {
       await loadProfiles([p.new.user_id]);
       all.push(p.new); renderList();
       if (cur === p.new.chat_id && scr === "chat") renderChat();
+    }).on("postgres_changes", {event: "UPDATE", schema: "public", table: "messages"}, p => {
+      const i = all.findIndex(x => x.id === p.new.id);
+      if (i >= 0) { all[i] = p.new; renderList(); if (scr === "chat") renderChat(); }
+    }).on("postgres_changes", {event: "DELETE", schema: "public", table: "messages"}, p => {
+      all = all.filter(x => x.id !== p.old.id); renderList(); if (scr === "chat") renderChat();
     }).subscribe();
   }
 }
@@ -358,7 +396,7 @@ function renderList() {
   });
 }
 function renderChat() {
-  const c = chats[cur], box = $("msgs"); box.textContent = "";
+  const c = chats[cur], box = $("msgs"); box.textContent = ""; applyWp();
   $("title").textContent = cTitle(c);
   $("cdesc").textContent = c.kind === "dm" ? seen(who(c.other).last_seen)
     : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
@@ -375,7 +413,10 @@ function renderChat() {
       else { const i = el("img"); i.src = m.media_url; i.onclick = () => window.open(m.media_url, "_blank"); d.append(i); }
     }
     if (m.text) d.append(el("span", "", m.text));
-    d.append(el("time", "", hm(m.created_at)));
+    const canManage = mine || c.owner_id === me.id || me.is_admin;
+    const tm = el("time", canManage ? "mt" : "", (m.edited ? "изм. " : "") + hm(m.created_at) + (canManage ? "  ⋯" : ""));
+    if (canManage) tm.onclick = () => msgMenu(m);
+    d.append(tm);
     if (!mine) { const a = avEl(p, true); a.style.cursor = "pointer"; a.onclick = () => openUser(m.user_id); w.append(a); }
     w.append(d); box.appendChild(w);
   });
@@ -495,7 +536,15 @@ async function openUser(id) {
   const hs = el("div", "lbl", "@" + data.handle + " · " + seen(data.last_seen)); hs.style.textAlign = "center";
   b.append(a, nm, hs);
   if (data.bio) b.append(el("div", "", data.bio));
-  if (id !== me.id) { const w = el("button", "btn", "Написать"); w.onclick = () => writeTo(id); b.append(w); }
+  const g = await sb.from("gift_sends").select("gifts(emoji)").eq("to_user", id).limit(200);
+  const cnt = {}; (g.data || []).forEach(x => { const e = x.gifts && x.gifts.emoji; if (e) cnt[e] = (cnt[e] || 0) + 1; });
+  const ge = Object.keys(cnt);
+  if (ge.length) { const gd = el("div", "", ge.map(e => e + (cnt[e] > 1 ? "×" + cnt[e] : "")).join("  ")); gd.style.fontSize = "24px"; b.append(el("div", "lbl", "Подарки"), gd); }
+  if (id !== me.id) {
+    const w = el("button", "btn", "Написать"); w.onclick = () => writeTo(id);
+    const gb = el("button", "btn g", "🎁 Подарить"); gb.onclick = () => openGifts(id);
+    b.append(w, gb);
+  }
   show("usr");
 }
 async function writeTo(id) {
@@ -580,9 +629,10 @@ async function saveProfile() {
 async function openAdmin() {
   show("admin");
   const box = $("abox"); box.textContent = "";
-  const [u, c] = await Promise.all([
+  const [u, c, gq] = await Promise.all([
     sb.from("profiles").select("*").order("username").limit(200),
-    sb.from("chats").select("*").neq("kind", "dm").order("created_at", {ascending: false}).limit(100)]);
+    sb.from("chats").select("*").neq("kind", "dm").order("created_at", {ascending: false}).limit(100),
+    sb.from("gifts").select("*").order("price")]);
   const users = u.data || [], cl = c.data || [];
   const call = async (fn, args) => { const {error} = await sb.rpc(fn, args); if (error) alert(error.message); else openAdmin(); };
   box.append(el("div", "lbl", "  Пользователи: " + users.length));
@@ -594,9 +644,26 @@ async function openAdmin() {
     b1.onclick = () => call("admin_set_verified", {uid: p.id, val: !p.verified});
     const b2 = el("button", "btn s g", p.is_admin ? "Убрать админа" : "Сделать админом");
     b2.onclick = () => call("admin_set_admin", {uid: p.id, val: !p.is_admin});
-    const act = el("div"); act.style.cssText = "display:flex;flex-direction:column;gap:4px"; act.append(b1, b2);
+    const act = el("div"); act.style.cssText = "display:flex;flex-direction:column;gap:4px"; const b3 = el("button", "btn s g", "Выдать ⭐ (" + (p.stars || 0) + ")");
+    b3.onclick = () => { const n = parseInt(prompt("Сколько звёзд выдать? (можно отрицательное)", "100"), 10); if (n) call("admin_give_stars", {uid: p.id, amount: n}); };
+    act.append(b1, b2, b3);
     const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p), rt, act); box.appendChild(r);
   });
+  box.append(el("div", "lbl", "  Подарки: " + (gq.data || []).length));
+  (gq.data || []).forEach(g => {
+    const rt = el("div", "rt"); rt.append(el("b", "", g.name), el("div", "", "⭐ " + g.price));
+    const del = el("button", "btn s g", "Удалить");
+    del.onclick = async () => { if (!confirm("Удалить подарок «" + g.name + "»?")) return; const {error} = await sb.from("gifts").delete().eq("id", g.id); if (error) alert(error.message); else openAdmin(); };
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(el("div", "av", g.emoji), rt, del); box.appendChild(r);
+  });
+  const ng = el("button", "btn", "＋ Создать подарок"); ng.style.margin = "10px 16px";
+  ng.onclick = async () => {
+    const emoji = (prompt("Эмодзи подарка", "🎁") || "").trim(); if (!emoji) return;
+    const name = (prompt("Название подарка") || "").trim(); if (!name) return;
+    const price = parseInt(prompt("Цена в звёздах", "25"), 10); if (!price || price < 1) return;
+    const {error} = await sb.from("gifts").insert({name, emoji, price}); if (error) alert(error.message); else openAdmin();
+  };
+  box.append(ng);
   box.append(el("div", "lbl", "  Чаты: " + cl.length));
   cl.forEach(ch => {
     const rt = el("div", "rt");
@@ -631,6 +698,116 @@ async function logoutOthers() {
   loadDevices();
 }
 
+/* ---------- изменить / удалить сообщение ---------- */
+const closeMenu = () => { $("ms").style.display = "none"; };
+function msgMenu(m) {
+  const b = $("msb"); b.textContent = "";
+  if (m.user_id === me.id && m.text) { const e = el("button", "btn", "Изменить"); e.onclick = () => { closeMenu(); editMsg(m); }; b.append(e); }
+  const d = el("button", "btn g", "Удалить"); d.onclick = () => { closeMenu(); delMsg(m); };
+  const c = el("button", "btn g", "Отмена"); c.onclick = closeMenu;
+  b.append(d, c); $("ms").style.display = "flex";
+}
+async function editMsg(m) {
+  const t = prompt("Изменить сообщение", m.text); if (t === null) return;
+  const v = t.trim().slice(0, 500);
+  if (!v && !m.media_url) { alert("Сообщение не может быть пустым"); return; }
+  const {error} = await sb.from("messages").update({text: v, edited: true}).eq("id", m.id);
+  if (error) { alert(error.message); return; }
+  m.text = v; m.edited = true; renderList(); renderChat();
+}
+async function delMsg(m) {
+  if (!confirm("Удалить сообщение?")) return;
+  const {error} = await sb.from("messages").delete().eq("id", m.id);
+  if (error) { alert(error.message); return; }
+  all = all.filter(x => x.id !== m.id); renderList(); renderChat();
+}
+
+/* ---------- обои ---------- */
+const WPS = [["", "Стандарт"], ["#0b3d2e", "Лес"], ["#22225a", "Ночь"], ["#3a3a3a", "Графит"], ["#ffe9d6", "Беж"],
+  ["linear-gradient(135deg,#0078d7,#6a00ff)", "Неон"], ["linear-gradient(135deg,#ff7e5f,#feb47b)", "Закат"], ["linear-gradient(135deg,#134e5e,#71b280)", "Мята"]];
+function wpGet(id) { try { return localStorage.getItem("wp:" + id) || localStorage.getItem("wp:all") || ""; } catch (e) { return ""; } }
+function applyWp() {
+  const v = cur ? wpGet(cur) : "", b = $("msgs");
+  b.style.background = ""; b.style.backgroundImage = "";
+  if (!v) return;
+  if (v.startsWith("data:")) { b.style.backgroundImage = "url(" + v + ")"; b.style.backgroundSize = "cover"; b.style.backgroundPosition = "center"; }
+  else b.style.background = v;
+}
+function setWp(v) {
+  try {
+    const all_ = $("wpall").checked;
+    if (v) { localStorage.setItem(all_ ? "wp:all" : "wp:" + cur, v); if (all_) localStorage.removeItem("wp:" + cur); }
+    else { localStorage.removeItem("wp:" + cur); localStorage.removeItem("wp:all"); }
+  } catch (e) { alert("Не хватило места в браузере. Выберите картинку поменьше."); }
+  applyWp();
+}
+function openWp() {
+  const g = $("wpgrid"); g.textContent = ""; $("wpall").checked = false;
+  WPS.forEach(w => {
+    const t = el("div", "wpt", w[1]); t.style.background = w[0] || "var(--bg)"; if (!w[0]) t.style.color = "var(--text)";
+    t.onclick = () => setWp(w[0]); g.appendChild(t);
+  });
+  show("wp");
+}
+
+/* ---------- звёзды и премиум ---------- */
+async function refreshMe() {
+  const {data} = await sb.from("profiles").select("*").eq("id", me.id).maybeSingle();
+  if (data) { Object.assign(me, data); prof[me.id] = me; }
+}
+async function openShop() { show("shopscr"); await refreshMe(); renderShop(); }
+function renderShop() {
+  const b = $("shopbox"); b.textContent = "";
+  const bal = el("div", "", "⭐ " + (me.stars || 0)); bal.style.cssText = "font-size:44px;text-align:center";
+  const bl = el("div", "lbl", "Ваши звёзды"); bl.style.textAlign = "center";
+  const prem = isPrem(me), amt = prem ? 40 : 20;
+  const left = me.last_bonus ? 86400000 - (Date.now() - new Date(me.last_bonus)) : 0;
+  const bb = el("button", "btn", left > 0 ? "Следующий бонус через " + Math.ceil(left / 3600000) + " ч" : "Получить ежедневный бонус: +" + amt + " ⭐");
+  bb.disabled = left > 0; bb.onclick = claimBonus;
+  const card = el("div"); card.style.cssText = "border:2px solid var(--acc);padding:14px;display:flex;flex-direction:column;gap:6px";
+  const ttl = el("div", "", "💎 Премиум"); ttl.style.fontSize = "22px";
+  card.append(ttl,
+    el("div", "", "• Значок 💎 рядом с именем"), el("div", "", "• Ежедневный бонус ×2 (40 ⭐)"),
+    el("div", "", "• Видео до 40 МБ (обычно 10 МБ)"), el("div", "", "• Дополнительные аватарки-эмодзи"),
+    el("div", "lbl", prem ? "Активен до " + new Date(me.premium_until).toLocaleDateString("ru-RU") : "30 дней за 100 ⭐"));
+  const pb = el("button", "btn", prem ? "Продлить на 30 дней за 100 ⭐" : "Купить Премиум за 100 ⭐"); pb.onclick = buyPremium; card.append(pb);
+  b.append(bal, bl, bb, card, el("div", "lbl", "Звёзды нельзя купить за деньги: их дают ежедневный бонус и администратор. Тратить можно на Премиум и подарки."));
+}
+async function claimBonus() {
+  const {error} = await sb.rpc("claim_bonus"); if (error) { alert(error.message); return; }
+  await refreshMe(); renderShop();
+}
+async function buyPremium() {
+  if (!confirm("Купить Премиум на 30 дней за 100 ⭐?")) return;
+  const {error} = await sb.rpc("buy_premium"); if (error) { alert(error.message); return; }
+  await refreshMe(); renderShop(); renderList();
+}
+
+/* ---------- подарки ---------- */
+let giftTo = null;
+async function openGifts(uid) {
+  giftTo = uid; show("gf"); await refreshMe();
+  const b = $("gbox"); b.textContent = "";
+  b.append(el("div", "lbl", "  Баланс: ⭐ " + (me.stars || 0) + " · получатель: " + who(uid).username));
+  const {data} = await sb.from("gifts").select("*").order("price");
+  if (!data || !data.length) { b.append(el("div", "empty", "Подарков пока нет")); return; }
+  data.forEach(g => {
+    const rt = el("div", "rt"); rt.append(el("b", "", g.name), el("div", "", "⭐ " + g.price));
+    const btn = el("button", "btn s", "Подарить"); btn.onclick = () => sendGift(g);
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(el("div", "av", g.emoji), rt, btn); b.append(r);
+  });
+}
+async function sendGift(g) {
+  if (!confirm("Отправить «" + g.name + "» за " + g.price + " ⭐?")) return;
+  const {error} = await sb.rpc("send_gift", {gid: g.id, to_uid: giftTo});
+  if (error) { alert(error.message); return; }
+  try {
+    const d = await sb.rpc("get_dm", {other: giftTo});
+    if (d.data) await sb.from("messages").insert({chat_id: d.data, user_id: me.id, text: "🎁 Подарок: " + g.emoji + " " + g.name});
+  } catch (e) {}
+  await refreshMe(); await loadChats(); openUser(giftTo);
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => e.key === "Enter" && submit();
@@ -653,6 +830,13 @@ $("uback").onclick = () => show(prevScr === "usr" ? "list" : prevScr);
 $("sfile").onchange = addStory;
 $("svm").onclick = e => { if (e.offsetX < e.currentTarget.clientWidth / 3) { sv.i = Math.max(0, sv.i - 1); showStory(); } else nextStory(); };
 $("adm").onclick = openAdmin; $("aback").onclick = () => show("list");
+$("shop").onclick = openShop; $("shopback").onclick = () => show("list");
+$("gfback").onclick = () => openUser(giftTo);
+$("wpb").onclick = openWp; $("wpback").onclick = () => { show("chat"); renderChat(); };
+$("wpup").onclick = () => $("wpfile").click();
+$("wpfile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { const bl = await shrink(f, 1080, false); const r = new FileReader(); r.onload = () => setWp(r.result); r.readAsDataURL(bl); } catch (x) { alert(x.message); } };
+$("wpreset").onclick = () => setWp("");
+$("ms").onclick = e => { if (e.target.id === "ms") closeMenu(); };
 $("me").onclick = openProfile; $("pback").onclick = () => show("list");
 $("pphoto").onclick = () => $("pfile").click();
 $("pfile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { pBlob = await shrink(f, 256, true); drawPav(); } catch (x) { alert(x.message); } };
