@@ -25,14 +25,16 @@ header button{background:none;border:0;color:#fff;font-size:22px;padding:0 4px}
 #cdesc{padding:6px 16px;background:var(--bar);color:var(--sub);font-size:13px;border-bottom:1px solid var(--line)}
 #msgs{padding:10px;display:flex;flex-direction:column;gap:6px}
 .mw{display:flex;gap:6px;align-items:flex-end;max-width:88%;align-self:flex-start}.mw.me{align-self:flex-end}
-.m{padding:6px 10px;background:var(--in);overflow-wrap:anywhere}.mw.me .m{background:var(--out)}
+.m{padding:6px 10px;background:var(--in);overflow-wrap:anywhere;min-width:0}.mw.me .m{background:var(--out)}
 .m small{display:block;color:var(--acc);font-weight:600;font-size:12px}.mw.me .m small{display:none}
 .m time{display:block;text-align:right;color:var(--sub);font-size:11px}
+.m img,.m video{display:block;max-width:100%;width:240px;max-height:320px;object-fit:cover;margin:2px 0 4px;background:#000}
 .bar{display:flex;background:var(--bar);border-top:1px solid var(--line);padding:8px;gap:8px}
 .bar.ro{justify-content:center;color:var(--sub);padding:14px}
 input,textarea{border:2px solid var(--line);background:var(--bg);color:var(--text);padding:10px;font:inherit;min-width:0}
-input:focus,textarea:focus{outline:0;border-color:var(--acc)}
+input:focus,textarea:focus{outline:0;border-color:var(--acc)}input:disabled,textarea:disabled{opacity:.7}
 .bar input{flex:1}.bar button{background:var(--acc);color:#fff;border:0;width:48px;font-size:20px}
+.bar button.g{background:var(--bg);color:var(--text);border:2px solid var(--line)}
 .form{margin:auto;width:min(340px,92%);display:flex;flex-direction:column;gap:10px;padding:16px 0}
 .form h2{font-weight:300;font-size:28px;margin:0}
 .btn{background:var(--acc);color:#fff;border:0;padding:12px;font:inherit}.btn.g{background:var(--bar);color:var(--text);border:1px solid var(--line)}
@@ -43,11 +45,24 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
 .grid div.sel{border-color:var(--acc);background:var(--out)}
 .err{color:#d13438;min-height:1.2em;font-size:13px}.lbl{color:var(--sub);font-size:13px}
 .empty{color:var(--sub);text-align:center;margin:auto;padding:30px 20px}
+#stories{display:flex;gap:10px;padding:10px 12px;overflow-x:auto;border-bottom:1px solid var(--line);flex:none}
+.st{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;flex:none;cursor:pointer;font-size:12px}
+.st .av{width:54px;height:54px;border:3px solid var(--acc)}
+.st.add .av{border:3px dashed var(--line);background:var(--bar);color:var(--sub);font-size:30px}
+.st i{font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;color:var(--sub)}
+#sv{display:none;position:fixed;inset:0;background:#000;color:#fff;z-index:10;flex-direction:column}
+#svh{display:flex;align-items:center;gap:8px;padding:12px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+#svh span{flex:1}#svh button{background:none;border:0;color:#fff;font-size:22px}
+#svm{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+#svm img,#svm video{max-width:100%;max-height:100%}
+#svc{padding:12px;text-align:center;min-height:2.5em}
 </style>
 </head>
 <body>
 
-<div class="screen on" id="auth"><div class="form">
+<div class="screen on" id="boot"><div class="empty">Загрузка…</div></div>
+
+<div class="screen" id="auth"><div class="form">
   <h2>Мессенджер</h2>
   <div class="tabs"><button id="tl" class="on">Вход</button><button id="tr">Регистрация</button></div>
   <input id="email" type="email" placeholder="Почта" autocomplete="email">
@@ -63,15 +78,19 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
 </div></div>
 
 <div class="screen" id="list">
-  <header><span class="t">Чаты</span><button id="adm" title="Админ-панель" style="display:none">🛡</button><button id="find" title="Найти">🔍</button><button id="new" title="Создать">＋</button><button id="me" title="Профиль">👤</button></header>
+  <header><span class="t">Чаты</span><button id="adm" style="display:none">🛡</button><button id="find">🔍</button><button id="new">＋</button><button id="me">👤</button></header>
+  <div id="stories"></div>
   <div class="scroll" id="rooms"></div>
+  <input type="file" id="sfile" accept="image/*,video/*" style="display:none">
 </div>
 
 <div class="screen" id="chat">
-  <header><button id="back">←</button><span class="t" id="title"></span></header>
+  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
-  <div class="bar" id="cbar"><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
+  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
+  <div class="bar ro" id="robar" style="display:none">В этом канале пишет только владелец</div>
+  <input type="file" id="mfile" accept="image/*,video/*" style="display:none">
 </div>
 
 <div class="screen" id="nc">
@@ -80,16 +99,41 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
     <div class="tabs"><button id="kg" class="on">Группа</button><button id="kc">Канал</button></div>
     <div class="lbl" id="khint"></div>
     <input id="ctitle" maxlength="40" placeholder="Название">
+    <input id="chandle" maxlength="20" placeholder="Юзернейм (необязательно, a-z, 0-9, _)" autocapitalize="none">
     <input id="cdescin" maxlength="200" placeholder="Описание">
     <div class="err" id="cerr"></div>
     <button class="btn" id="ccreate">Создать</button>
+    <div class="lbl">Фото чата можно поставить потом: откройте чат и нажмите на его название.</div>
+  </div></div>
+</div>
+
+<div class="screen" id="ci">
+  <header><button id="ciback">←</button><span class="t">О чате</span></header>
+  <div class="scroll"><div class="form">
+    <div class="av" style="width:90px;height:90px;font-size:48px;align-self:center" id="ciav"></div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button class="btn s" id="cphoto">Загрузить фото</button><button class="btn s g" id="cnophoto">Убрать фото</button>
+    </div>
+    <input type="file" id="cfile" accept="image/*" style="display:none">
+    <div class="lbl">Название</div><input id="cit" maxlength="40">
+    <div class="lbl">Юзернейм</div><input id="cih" maxlength="20" autocapitalize="none" placeholder="не задан">
+    <div class="lbl">Описание</div><textarea id="cid" maxlength="200" rows="3"></textarea>
+    <div class="err" id="cierr"></div>
+    <button class="btn" id="cisave">Сохранить</button>
+    <button class="btn g" id="cileave"></button>
   </div></div>
 </div>
 
 <div class="screen" id="fd">
-  <header><button id="fdback">←</button><span class="t">Поиск чатов</span></header>
-  <div style="padding:10px;display:flex;gap:8px"><input id="fq" placeholder="Название группы или канала" style="flex:1"><button class="btn" id="fgo">Найти</button></div>
+  <header><button id="fdback">←</button><span class="t">Поиск</span></header>
+  <div class="tabs"><button id="fc" class="on">Чаты</button><button id="fp">Люди</button></div>
+  <div style="padding:10px;display:flex;gap:8px"><input id="fq" placeholder="Название или @юзернейм" style="flex:1" autocapitalize="none"><button class="btn" id="fgo">Найти</button></div>
   <div class="scroll" id="fres"></div>
+</div>
+
+<div class="screen" id="usr">
+  <header><button id="uback">←</button><span class="t">Профиль</span></header>
+  <div class="scroll"><div class="form" id="ubox"></div></div>
 </div>
 
 <div class="screen" id="admin">
@@ -98,7 +142,7 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
 </div>
 
 <div class="screen" id="prof">
-  <header><button id="pback">←</button><span class="t">Профиль</span></header>
+  <header><button id="pback">←</button><span class="t">Мой профиль</span></header>
   <div class="scroll"><div class="form">
     <div class="av" style="width:90px;height:90px;font-size:48px;align-self:center" id="pav"></div>
     <div style="display:flex;gap:8px;justify-content:center">
@@ -112,7 +156,16 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
     <div class="err" id="perr"></div>
     <button class="btn" id="psave">Сохранить</button>
     <button class="btn g" id="logout">Выйти</button>
+    <div class="lbl" style="margin-top:12px">Устройства, где выполнен вход</div>
+    <div id="devs"></div>
+    <button class="btn g" id="dout">Выйти на всех других устройствах</button>
   </div></div>
+</div>
+
+<div id="sv">
+  <div id="svh"></div>
+  <div id="svm"></div>
+  <div id="svc"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -120,29 +173,81 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
 const SUPABASE_URL = "https://fwkcgyxmgzsixjgmpnut.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3a2NneXhtZ3pzaXhqZ21wbnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3NjYyMjUsImV4cCI6MjEwODM0MjIyNX0.mn8BY9rF-tuSjUMk8LwJx6IFVVPFiDLKOvqloP8kWMc";
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "messenger-auth", storage: window.localStorage}
+});
 const $ = id => document.getElementById(id);
 const AV = "😀 😎 🤓 🥳 😺 🐶 🦊 🐼 🐸 🦁 🐵 🐧 🚀 ⚡ 🔥 🌈 🎧 🎮 ⚽ 🍕 🌵 🍀 👾 🤖".split(" ");
 const HRE = /^[a-z0-9_]{3,20}$/;
-let me = null, cur = null, mode = "login", kind = "group", subscribed = false;
-let prof = {}, chats = {}, mem = new Set(), all = [];
-let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null;
+let me = null, cur = null, mode = "login", kind = "group", subscribed = false, fmode = "chats";
+let prof = {}, chats = {}, mem = new Set(), all = [], stories = {};
+let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null, ciUrl = null, ciBlob = null;
+let scr = "auth", prevScr = "auth", sv = {list: [], i: 0, t: null};
 
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
-const show = id => document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
+function show(id) { prevScr = scr; scr = id; document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); }
 const who = id => prof[id] || {username: "…", avatar: "👤"};
 const badge = p => p && p.verified ? " ✔" : "";
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+const clean = s => s.trim().toLowerCase().replace(/^@/, "");
 
+function seen(ts) {
+  if (!ts) return "был(а) давно";
+  const d = new Date(ts);
+  if (Date.now() - d < 150000) return "в сети";
+  if (d.toDateString() === new Date().toDateString()) return "был(а) в " + hm(ts);
+  return "был(а) " + d.toLocaleDateString("ru-RU", {day: "2-digit", month: "2-digit"}) + " в " + hm(ts);
+}
 function avEl(p, small) {
   const d = el("div", "av" + (small ? " s" : ""));
   if (p.avatar_url) { const i = el("img"); i.src = p.avatar_url; d.appendChild(i); } else d.textContent = p.avatar;
   return d;
 }
-const chatAv = c => el("div", "av", c.kind === "channel" ? "📢" : "👥");
+function cAv(c, small) {
+  if (c.kind === "dm") return avEl(who(c.other), small);
+  const d = el("div", "av" + (small ? " s" : ""));
+  if (c.avatar_url) { const i = el("img"); i.src = c.avatar_url; d.appendChild(i); } else d.textContent = c.kind === "channel" ? "📢" : "👥";
+  return d;
+}
+const cTitle = c => c.kind === "dm" ? who(c.other).username + badge(who(c.other)) : c.title;
+const prev = m => m.text || (m.media_type === "video" ? "🎬 Видео" : "📷 Фото");
 function grid(box, get, set) {
   box.textContent = "";
   AV.forEach(a => { const d = el("div", a === get() ? "sel" : "", a); d.onclick = () => { set(a); grid(box, get, set); }; box.appendChild(d); });
+}
+
+/* ---------- файлы ---------- */
+function shrink(file, max, square) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      let sw = img.width, sh = img.height, sx = 0, sy = 0, w, h;
+      if (square) { const s = Math.min(sw, sh); sx = (sw - s) / 2; sy = (sh - s) / 2; sw = sh = s; w = h = max; }
+      else { const k = Math.min(1, max / Math.max(sw, sh)); w = Math.round(sw * k); h = Math.round(sh * k); }
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+      c.toBlob(b => b ? res(b) : rej(new Error("Не удалось обработать фото")), "image/jpeg", 0.85);
+    };
+    img.onerror = () => rej(new Error("Не удалось открыть фото"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function mediaUpload(f) {
+  const vid = f.type.startsWith("video/");
+  if (!vid && !f.type.startsWith("image/")) throw new Error("Можно только фото и видео");
+  if (vid && f.size > 40 * 1024 * 1024) throw new Error("Видео больше 40 МБ");
+  let blob = f, ct = f.type, ext = (f.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
+  if (!vid) { blob = await shrink(f, 1280, false); ct = "image/jpeg"; ext = "jpg"; }
+  const path = me.id + "/" + crypto.randomUUID() + "." + ext;
+  const up = await sb.storage.from("media").upload(path, blob, {contentType: ct});
+  if (up.error) throw new Error(up.error.message);
+  return {url: sb.storage.from("media").getPublicUrl(path).data.publicUrl, type: vid ? "video" : "image"};
+}
+async function uploadAvatar(blob, name) {
+  const path = me.id + "/" + name + ".jpg";
+  const up = await sb.storage.from("avatars").upload(path, blob, {upsert: true, contentType: "image/jpeg"});
+  if (up.error) throw new Error(up.error.message);
+  return sb.storage.from("avatars").getPublicUrl(path).data.publicUrl + "?v=" + Date.now();
 }
 
 /* ---------- вход / регистрация ---------- */
@@ -158,7 +263,7 @@ async function submit() {
   $("err").textContent = "";
   if (!email || password.length < 6) { $("err").textContent = "Введите почту и пароль от 6 символов"; return; }
   if (mode === "reg") {
-    const username = $("uname").value.trim(), handle = $("rhandle").value.trim().toLowerCase().replace(/^@/, "");
+    const username = $("uname").value.trim(), handle = clean($("rhandle").value);
     if (!username) { $("err").textContent = "Введите имя"; return; }
     if (!HRE.test(handle)) { $("err").textContent = "Юзернейм: 3–20 символов, a-z, 0-9 и _"; return; }
     const free = await sb.rpc("handle_free", {h: handle});
@@ -192,27 +297,48 @@ async function loadChats() {
   mem = new Set(ids); all = [];
   if (ids.length) {
     const c = await sb.from("chats").select("*").in("id", ids);
-    (c.data || []).forEach(x => chats[x.id] = x);
+    const list = c.data || []; list.forEach(x => chats[x.id] = x);
+    const dms = list.filter(x => x.kind === "dm").map(x => x.id), others = [];
+    if (dms.length) {
+      const o = await sb.from("chat_members").select("chat_id,user_id").in("chat_id", dms).neq("user_id", me.id);
+      (o.data || []).forEach(x => { chats[x.chat_id].other = x.user_id; others.push(x.user_id); });
+    }
     const r = await sb.from("messages").select("*").in("chat_id", ids).order("created_at", {ascending: false}).limit(500);
     all = (r.data || []).reverse();
-    await loadProfiles(all.map(x => x.user_id).concat((c.data || []).map(x => x.owner_id)));
+    await loadProfiles(all.map(x => x.user_id).concat(list.map(x => x.owner_id), others));
   }
   renderList();
+}
+let DEV = null;
+try { DEV = localStorage.getItem("dev_id"); if (!DEV) { DEV = crypto.randomUUID(); localStorage.setItem("dev_id", DEV); } } catch (e) { DEV = "tmp-" + Math.random().toString(36).slice(2); }
+function devName() {
+  const u = navigator.userAgent;
+  const os = /Android/.test(u) ? "Android" : /iPhone|iPad|iPod/.test(u) ? "iOS" : /Windows/.test(u) ? "Windows" : /Mac OS X|Macintosh/.test(u) ? "macOS" : /Linux/.test(u) ? "Linux" : "Устройство";
+  const br = /SamsungBrowser/.test(u) ? "Samsung Internet" : /YaBrowser/.test(u) ? "Яндекс Браузер" : /Edg\//.test(u) ? "Edge" : /OPR\/|Opera/.test(u) ? "Opera" : /Firefox|FxiOS/.test(u) ? "Firefox" : /Chrome|CriOS/.test(u) ? "Chrome" : /Safari/.test(u) ? "Safari" : "Браузер";
+  return os + " · " + br;
+}
+async function ping() {
+  if (!me) return;
+  const now = new Date().toISOString();
+  await sb.from("profiles").update({last_seen: now}).eq("id", me.id);
+  await sb.from("devices").upsert({user_id: me.id, device_id: DEV, name: devName(), last_active: now}, {onConflict: "user_id,device_id"});
 }
 async function enter(user) {
   let {data} = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (!data) data = {id: user.id, username: user.user_metadata?.username || "user", handle: user.user_metadata?.handle || "", bio: "", avatar: user.user_metadata?.avatar || AV[0], avatar_url: null};
   me = data; prof[me.id] = me;
   $("adm").style.display = me.is_admin ? "" : "none";
-  show("list");
-  await loadChats();
+  show("list"); ping();
+  await loadChats(); loadStories();
   if (!subscribed) {
     subscribed = true;
+    setInterval(ping, 60000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) ping(); });
     sb.channel("all").on("postgres_changes", {event: "INSERT", schema: "public", table: "messages"}, async p => {
       if (!mem.has(p.new.chat_id)) return;
       await loadProfiles([p.new.user_id]);
       all.push(p.new); renderList();
-      if (cur === p.new.chat_id && $("chat").classList.contains("on")) renderChat();
+      if (cur === p.new.chat_id && scr === "chat") renderChat();
     }).subscribe();
   }
 }
@@ -223,74 +349,208 @@ function renderList() {
   const last = {}; all.forEach(m => last[m.chat_id] = m);
   const items = [...mem].map(id => chats[id]).filter(Boolean)
     .sort((a, b) => ((last[b.id]?.created_at || b.created_at) > (last[a.id]?.created_at || a.created_at)) ? 1 : -1);
-  if (!items.length) { box.appendChild(el("div", "empty", "Чатов пока нет. Создайте группу или канал кнопкой ＋ либо найдите чужой через 🔍.")); return; }
+  if (!items.length) { box.appendChild(el("div", "empty", "Чатов пока нет. Создайте группу или канал кнопкой ＋ либо найдите чат или человека через 🔍.")); return; }
   items.forEach(c => {
     const m = last[c.id], rt = el("div", "rt"), b = el("b");
-    b.append(el("span", "", c.title), el("i", "", m ? hm(m.created_at) : ""));
-    rt.append(b, el("div", "", m ? who(m.user_id).username + badge(who(m.user_id)) + ": " + m.text : (c.kind === "channel" ? "Канал" : "Группа")));
-    const r = el("div", "row"); r.append(chatAv(c), rt); r.onclick = () => open(c.id); box.appendChild(r);
+    b.append(el("span", "", cTitle(c)), el("i", "", m ? hm(m.created_at) : ""));
+    rt.append(b, el("div", "", m ? who(m.user_id).username + badge(who(m.user_id)) + ": " + prev(m) : (c.kind === "channel" ? "Канал" : c.kind === "dm" ? "Личный чат" : "Группа")));
+    const r = el("div", "row"); r.append(cAv(c), rt); r.onclick = () => open(c.id); box.appendChild(r);
   });
 }
 function renderChat() {
   const c = chats[cur], box = $("msgs"); box.textContent = "";
-  $("title").textContent = c.title;
-  $("cdesc").textContent = (c.kind === "channel" ? "Канал" : "Группа") + (c.description ? " · " + c.description : "");
-  const can = c.kind === "group" || c.owner_id === me.id;
-  const bar = $("cbar"); bar.classList.toggle("ro", !can);
-  $("text").style.display = $("send").style.display = can ? "" : "none";
-  bar.dataset.ro = can ? "" : "1";
-  let ro = bar.querySelector(".rot"); if (ro) ro.remove();
-  if (!can) bar.prepend(el("span", "rot", "В этом канале пишет только владелец"));
+  $("title").textContent = cTitle(c);
+  $("cdesc").textContent = c.kind === "dm" ? seen(who(c.other).last_seen)
+    : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
+  const can = c.kind !== "channel" || c.owner_id === me.id;
+  $("cbar").style.display = can ? "" : "none"; $("robar").style.display = can ? "none" : "";
   const list = all.filter(m => m.chat_id === cur);
   if (!list.length) { box.appendChild(el("div", "empty", "Здесь пока пусто.")); return; }
   list.forEach(m => {
     const mine = m.user_id === me.id, p = who(m.user_id);
     const w = el("div", "mw" + (mine ? " me" : "")), d = el("div", "m");
-    d.append(el("small", "", p.username + badge(p)), el("span", "", m.text), el("time", "", hm(m.created_at)));
-    if (!mine) w.append(avEl(p, true));
+    d.append(el("small", "", p.username + badge(p)));
+    if (m.media_url) {
+      if (m.media_type === "video") { const v = el("video"); v.src = m.media_url; v.controls = true; v.preload = "metadata"; v.playsInline = true; d.append(v); }
+      else { const i = el("img"); i.src = m.media_url; i.onclick = () => window.open(m.media_url, "_blank"); d.append(i); }
+    }
+    if (m.text) d.append(el("span", "", m.text));
+    d.append(el("time", "", hm(m.created_at)));
+    if (!mine) { const a = avEl(p, true); a.style.cursor = "pointer"; a.onclick = () => openUser(m.user_id); w.append(a); }
     w.append(d); box.appendChild(w);
   });
   box.scrollTop = box.scrollHeight;
 }
-function open(id) { cur = id; show("chat"); renderChat(); }
-async function send() {
-  const v = $("text").value.trim(); if (!v || !cur) return;
+function open(id) {
+  cur = id; show("chat"); renderChat();
+  const c = chats[id];
+  if (c.kind === "dm") sb.from("profiles").select("*").eq("id", c.other).maybeSingle().then(({data}) => {
+    if (data) { prof[data.id] = data; if (cur === id && scr === "chat") $("cdesc").textContent = seen(data.last_seen); }
+  });
+}
+async function send(media) {
+  const v = $("text").value.trim(); if ((!v && !media) || !cur) return;
   $("text").value = "";
-  const {error} = await sb.from("messages").insert({chat_id: cur, user_id: me.id, text: v});
+  const row = {chat_id: cur, user_id: me.id, text: v};
+  if (media) { row.media_url = media.url; row.media_type = media.type; }
+  const {error} = await sb.from("messages").insert(row);
   if (error) { $("text").value = v; alert("Не отправлено: " + error.message); }
 }
+async function attach(e) {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  $("attach").textContent = "⏳";
+  try { await send(await mediaUpload(f)); } catch (x) { alert(x.message); }
+  $("attach").textContent = "📎";
+}
 
-/* ---------- создание и поиск ---------- */
+/* ---------- о чате ---------- */
+function drawCav() {
+  const d = $("ciav"); d.textContent = "";
+  if (ciBlob || ciUrl) { const i = el("img"); i.src = ciBlob ? URL.createObjectURL(ciBlob) : ciUrl; d.appendChild(i); }
+  else d.textContent = chats[cur].kind === "channel" ? "📢" : "👥";
+}
+function openInfo() {
+  const c = chats[cur], own = c.owner_id === me.id;
+  ciUrl = c.avatar_url; ciBlob = null;
+  $("cit").value = c.title; $("cih").value = c.handle || ""; $("cid").value = c.description || ""; $("cierr").textContent = "";
+  ["cit", "cih", "cid"].forEach(i => $(i).disabled = !own);
+  ["cphoto", "cnophoto", "cisave"].forEach(i => $(i).style.display = own ? "" : "none");
+  $("cileave").textContent = own ? "Удалить чат" : "Выйти из чата";
+  drawCav(); show("ci");
+}
+async function saveInfo() {
+  const title = $("cit").value.trim(), handle = clean($("cih").value);
+  $("cierr").textContent = "";
+  if (!title) { $("cierr").textContent = "Введите название"; return; }
+  if (handle && !HRE.test(handle)) { $("cierr").textContent = "Юзернейм: 3–20 символов, a-z, 0-9 и _"; return; }
+  try {
+    let url = ciUrl;
+    if (ciBlob) url = await uploadAvatar(ciBlob, "chat-" + cur);
+    const upd = {title, handle: handle || null, description: $("cid").value.trim(), avatar_url: url};
+    const {error} = await sb.from("chats").update(upd).eq("id", cur);
+    if (error) throw error;
+    Object.assign(chats[cur], upd); renderList(); renderChat(); show("chat");
+  } catch (x) { $("cierr").textContent = x.code === "23505" ? "Этот юзернейм занят" : x.message; }
+}
+async function leaveChat() {
+  const c = chats[cur], own = c.owner_id === me.id;
+  if (!confirm(own ? "Удалить чат «" + c.title + "» для всех?" : "Выйти из чата?")) return;
+  const r = own ? await sb.from("chats").delete().eq("id", cur) : await sb.from("chat_members").delete().eq("chat_id", cur).eq("user_id", me.id);
+  if (r.error) { alert(r.error.message); return; }
+  cur = null; await loadChats(); show("list");
+}
+
+/* ---------- создание, поиск, люди ---------- */
 function setKind(k) {
   kind = k; $("kg").classList.toggle("on", k === "group"); $("kc").classList.toggle("on", k === "channel");
   $("khint").textContent = k === "group" ? "В группе пишут все участники." : "В канале публикует только владелец, остальные читают.";
 }
 async function createChat() {
-  const title = $("ctitle").value.trim(); $("cerr").textContent = "";
+  const title = $("ctitle").value.trim(), handle = clean($("chandle").value); $("cerr").textContent = "";
   if (!title) { $("cerr").textContent = "Введите название"; return; }
-  const {data, error} = await sb.from("chats").insert({kind, title, description: $("cdescin").value.trim(), owner_id: me.id}).select().single();
-  if (error) { $("cerr").textContent = error.message; return; }
+  if (handle && !HRE.test(handle)) { $("cerr").textContent = "Юзернейм: 3–20 символов, a-z, 0-9 и _"; return; }
+  const {data, error} = await sb.from("chats").insert({kind, title, handle: handle || null, description: $("cdescin").value.trim(), owner_id: me.id}).select().single();
+  if (error) { $("cerr").textContent = error.code === "23505" ? "Этот юзернейм занят" : error.message; return; }
   chats[data.id] = data; await loadChats(); open(data.id);
 }
+function setF(m) { fmode = m; $("fc").classList.toggle("on", m === "chats"); $("fp").classList.toggle("on", m === "people"); search(); }
 async function search() {
-  const q = $("fq").value.trim(), box = $("fres"); box.textContent = "";
-  let query = sb.from("chats").select("*").order("created_at", {ascending: false}).limit(30);
-  if (q) query = query.ilike("title", "%" + q + "%");
-  const {data} = await query;
+  const box = $("fres"); box.textContent = "";
+  const q = clean($("fq").value).replace(/[,()%*]/g, "");
+  if (fmode === "people") {
+    let qq = sb.from("profiles").select("*").neq("id", me.id).limit(30);
+    if (q) qq = qq.or("username.ilike.%" + q + "%,handle.ilike.%" + q + "%");
+    const {data} = await qq;
+    if (!data || !data.length) { box.appendChild(el("div", "empty", "Никого не найдено")); return; }
+    data.forEach(p => {
+      prof[p.id] = p;
+      const rt = el("div", "rt"); rt.append(el("b", "", p.username + badge(p)), el("div", "", "@" + p.handle + " · " + seen(p.last_seen)));
+      const r = el("div", "row"); r.append(avEl(p), rt); r.onclick = () => openUser(p.id); box.appendChild(r);
+    });
+    return;
+  }
+  let qq = sb.from("chats").select("*").neq("kind", "dm").order("created_at", {ascending: false}).limit(30);
+  if (q) qq = qq.or("title.ilike.%" + q + "%,handle.ilike.%" + q + "%");
+  const {data} = await qq;
   if (!data || !data.length) { box.appendChild(el("div", "empty", "Ничего не найдено")); return; }
   data.forEach(c => {
     chats[c.id] = c;
-    const rt = el("div", "rt"); rt.append(el("b", "", c.title), el("div", "", (c.kind === "channel" ? "Канал" : "Группа") + (c.description ? " · " + c.description : "")));
+    const rt = el("div", "rt");
+    rt.append(el("b", "", c.title), el("div", "", (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "")));
     const r = el("div", "row"), joined = mem.has(c.id), btn = el("button", "btn s", joined ? "Открыть" : "Вступить");
     btn.onclick = async () => {
       if (!joined) { const {error} = await sb.from("chat_members").insert({chat_id: c.id, user_id: me.id}); if (error) { alert(error.message); return; } await loadChats(); }
       open(c.id);
     };
-    r.append(chatAv(c), rt, btn); box.appendChild(r);
+    r.append(cAv(c), rt, btn); box.appendChild(r);
   });
 }
+async function openUser(id) {
+  const {data} = await sb.from("profiles").select("*").eq("id", id).maybeSingle();
+  if (!data) return;
+  prof[id] = data;
+  const b = $("ubox"); b.textContent = "";
+  const a = avEl(data); a.style.cssText = "width:96px;height:96px;font-size:52px;align-self:center";
+  const nm = el("div", "", data.username + badge(data)); nm.style.cssText = "font-size:22px;text-align:center";
+  const hs = el("div", "lbl", "@" + data.handle + " · " + seen(data.last_seen)); hs.style.textAlign = "center";
+  b.append(a, nm, hs);
+  if (data.bio) b.append(el("div", "", data.bio));
+  if (id !== me.id) { const w = el("button", "btn", "Написать"); w.onclick = () => writeTo(id); b.append(w); }
+  show("usr");
+}
+async function writeTo(id) {
+  const {data, error} = await sb.rpc("get_dm", {other: id});
+  if (error) { alert(error.message); return; }
+  await loadChats(); open(data);
+}
 
-/* ---------- профиль ---------- */
+/* ---------- истории ---------- */
+async function loadStories() {
+  const r = await sb.from("stories").select("*").order("created_at", {ascending: true});
+  stories = {}; (r.data || []).forEach(s => (stories[s.user_id] = stories[s.user_id] || []).push(s));
+  await loadProfiles(Object.keys(stories));
+  renderStories();
+}
+function renderStories() {
+  const box = $("stories"); box.textContent = "";
+  const add = el("div", "st add"); add.append(el("div", "av", "+"), el("i", "", "Добавить")); add.onclick = () => $("sfile").click();
+  box.appendChild(add);
+  Object.keys(stories).sort((a, b) => (a === me.id ? -1 : b === me.id ? 1 : 0)).forEach(uid => {
+    const p = who(uid), s = el("div", "st"); s.append(avEl(p), el("i", "", uid === me.id ? "Моя" : p.username));
+    s.onclick = () => viewStories(uid); box.appendChild(s);
+  });
+}
+async function addStory(e) {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const m = await mediaUpload(f);
+    const cap = (prompt("Подпись (можно пропустить)") || "").slice(0, 200);
+    const {error} = await sb.from("stories").insert({user_id: me.id, media_url: m.url, media_type: m.type, caption: cap});
+    if (error) throw error;
+    await loadStories();
+  } catch (x) { alert(x.message); }
+}
+function viewStories(uid) { sv.list = stories[uid] || []; sv.i = 0; if (!sv.list.length) return; $("sv").style.display = "flex"; showStory(); }
+function showStory() {
+  clearTimeout(sv.t);
+  const s = sv.list[sv.i]; if (!s) { closeStory(); return; }
+  const p = who(s.user_id), m = $("svm"); m.textContent = "";
+  const h = $("svh"); h.textContent = "";
+  h.append(avEl(p, true), el("span", "", p.username + badge(p) + " · " + hm(s.created_at)));
+  if (s.user_id === me.id) { const d = el("button", "", "🗑"); d.onclick = delStory; h.append(d); }
+  const x = el("button", "", "✕"); x.onclick = closeStory; h.append(x);
+  if (s.media_type === "video") { const v = el("video"); v.src = s.media_url; v.autoplay = true; v.playsInline = true; v.onended = nextStory; m.append(v); }
+  else { const i = el("img"); i.src = s.media_url; m.append(i); sv.t = setTimeout(nextStory, 5000); }
+  $("svc").textContent = s.caption || "";
+}
+const nextStory = () => { sv.i++; showStory(); };
+function closeStory() { clearTimeout(sv.t); $("sv").style.display = "none"; $("svm").textContent = ""; }
+async function delStory() {
+  const s = sv.list[sv.i]; if (!s || !confirm("Удалить историю?")) return;
+  await sb.from("stories").delete().eq("id", s.id); closeStory(); loadStories();
+}
+
+/* ---------- мой профиль ---------- */
 function drawPav() {
   const d = $("pav"); d.textContent = "";
   if (pBlob || pUrl) { const i = el("img"); i.src = pBlob ? URL.createObjectURL(pBlob) : pUrl; d.appendChild(i); } else d.textContent = pEmoji;
@@ -299,36 +559,21 @@ function openProfile() {
   pEmoji = me.avatar; pUrl = me.avatar_url; pBlob = null;
   $("pname").value = me.username; $("phandle").value = me.handle; $("pbio").value = me.bio || ""; $("perr").textContent = "";
   grid($("grid2"), () => pEmoji, a => { pEmoji = a; pUrl = null; pBlob = null; drawPav(); });
-  drawPav(); show("prof");
-}
-function pickFile(e) {
-  const f = e.target.files[0]; if (!f) return;
-  const img = new Image();
-  img.onload = () => {
-    const c = document.createElement("canvas"); c.width = c.height = 256;
-    const s = Math.min(img.width, img.height);
-    c.getContext("2d").drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256);
-    c.toBlob(b => { pBlob = b; drawPav(); }, "image/jpeg", 0.85);
-  };
-  img.src = URL.createObjectURL(f);
+  drawPav(); show("prof"); loadDevices();
 }
 async function saveProfile() {
-  const username = $("pname").value.trim(), handle = $("phandle").value.trim().toLowerCase().replace(/^@/, "");
+  const username = $("pname").value.trim(), handle = clean($("phandle").value);
   $("perr").textContent = "";
   if (!username) { $("perr").textContent = "Введите имя"; return; }
   if (!HRE.test(handle)) { $("perr").textContent = "Юзернейм: 3–20 символов, a-z, 0-9 и _"; return; }
-  let url = pUrl;
-  if (pBlob) {
-    const path = me.id + "/avatar.jpg";
-    const up = await sb.storage.from("avatars").upload(path, pBlob, {upsert: true, contentType: "image/jpeg"});
-    if (up.error) { $("perr").textContent = "Фото не загрузилось: " + up.error.message; return; }
-    url = sb.storage.from("avatars").getPublicUrl(path).data.publicUrl + "?v=" + Date.now();
-  }
-  const upd = {username, handle, bio: $("pbio").value.trim(), avatar: pEmoji, avatar_url: url};
-  const {error} = await sb.from("profiles").update(upd).eq("id", me.id);
-  if (error) { $("perr").textContent = error.code === "23505" ? "Этот юзернейм занят" : error.message; return; }
-  Object.assign(me, upd); prof[me.id] = me;
-  renderList(); show("list");
+  try {
+    let url = pUrl;
+    if (pBlob) url = await uploadAvatar(pBlob, "avatar");
+    const upd = {username, handle, bio: $("pbio").value.trim(), avatar: pEmoji, avatar_url: url};
+    const {error} = await sb.from("profiles").update(upd).eq("id", me.id);
+    if (error) throw error;
+    Object.assign(me, upd); prof[me.id] = me; renderList(); renderStories(); show("list");
+  } catch (x) { $("perr").textContent = x.code === "23505" ? "Этот юзернейм занят" : x.message; }
 }
 
 /* ---------- админ-панель ---------- */
@@ -337,7 +582,7 @@ async function openAdmin() {
   const box = $("abox"); box.textContent = "";
   const [u, c] = await Promise.all([
     sb.from("profiles").select("*").order("username").limit(200),
-    sb.from("chats").select("*").order("created_at", {ascending: false}).limit(100)]);
+    sb.from("chats").select("*").neq("kind", "dm").order("created_at", {ascending: false}).limit(100)]);
   const users = u.data || [], cl = c.data || [];
   const call = async (fn, args) => { const {error} = await sb.rpc(fn, args); if (error) alert(error.message); else openAdmin(); };
   box.append(el("div", "lbl", "  Пользователи: " + users.length));
@@ -349,8 +594,7 @@ async function openAdmin() {
     b1.onclick = () => call("admin_set_verified", {uid: p.id, val: !p.verified});
     const b2 = el("button", "btn s g", p.is_admin ? "Убрать админа" : "Сделать админом");
     b2.onclick = () => call("admin_set_admin", {uid: p.id, val: !p.is_admin});
-    const act = el("div"); act.style.cssText = "display:flex;flex-direction:column;gap:4px";
-    act.append(b1, b2);
+    const act = el("div"); act.style.cssText = "display:flex;flex-direction:column;gap:4px"; act.append(b1, b2);
     const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p), rt, act); box.appendChild(r);
   });
   box.append(el("div", "lbl", "  Чаты: " + cl.length));
@@ -364,29 +608,78 @@ async function openAdmin() {
       if (error) { alert(error.message); return; }
       await loadChats(); openAdmin();
     };
-    const r = el("div", "row"); r.style.cursor = "default"; r.append(chatAv(ch), rt, b); box.appendChild(r);
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(cAv(ch), rt, b); box.appendChild(r);
   });
+}
+
+/* ---------- устройства ---------- */
+async function loadDevices() {
+  const box = $("devs"); box.textContent = "";
+  const {data, error} = await sb.from("devices").select("*").order("last_active", {ascending: false});
+  if (error) { box.appendChild(el("div", "lbl", "Список устройств пока недоступен")); return; }
+  (data || []).forEach(d => {
+    const rt = el("div", "rt"), cur = d.device_id === DEV;
+    rt.append(el("b", "", d.name + (cur ? " · это устройство" : "")), el("div", "", seen(d.last_active)));
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(el("div", "av s", "📱"), rt); box.appendChild(r);
+  });
+}
+async function logoutOthers() {
+  if (!confirm("Выйти из аккаунта на всех других устройствах?")) return;
+  const {error} = await sb.auth.signOut({scope: "others"});
+  if (error) { alert(error.message); return; }
+  await sb.from("devices").delete().neq("device_id", DEV);
+  loadDevices();
 }
 
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => e.key === "Enter" && submit();
-$("text").onkeydown = e => e.key === "Enter" && send(); $("send").onclick = send;
-$("back").onclick = () => { cur = null; renderList(); show("list"); };
-$("new").onclick = () => { $("ctitle").value = ""; $("cdescin").value = ""; $("cerr").textContent = ""; setKind("group"); show("nc"); };
+$("text").onkeydown = e => e.key === "Enter" && send(); $("send").onclick = () => send();
+$("attach").onclick = () => $("mfile").click(); $("mfile").onchange = attach;
+$("back").onclick = () => { cur = null; renderList(); show("list"); loadStories(); };
+$("title").onclick = () => { const c = chats[cur]; if (c.kind === "dm") openUser(c.other); else openInfo(); };
+$("new").onclick = () => { ["ctitle", "chandle", "cdescin"].forEach(i => $(i).value = ""); $("cerr").textContent = ""; setKind("group"); show("nc"); };
 $("ncback").onclick = () => show("list");
 $("kg").onclick = () => setKind("group"); $("kc").onclick = () => setKind("channel");
 $("ccreate").onclick = createChat;
-$("find").onclick = () => { $("fq").value = ""; show("fd"); search(); };
+$("ciback").onclick = () => show("chat"); $("cisave").onclick = saveInfo; $("cileave").onclick = leaveChat;
+$("cphoto").onclick = () => $("cfile").click();
+$("cfile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { ciBlob = await shrink(f, 256, true); drawCav(); } catch (x) { alert(x.message); } };
+$("cnophoto").onclick = () => { ciUrl = null; ciBlob = null; drawCav(); };
+$("find").onclick = () => { $("fq").value = ""; show("fd"); setF("chats"); };
+$("fc").onclick = () => setF("chats"); $("fp").onclick = () => setF("people");
 $("fdback").onclick = () => show("list"); $("fgo").onclick = search; $("fq").onkeydown = e => e.key === "Enter" && search();
+$("uback").onclick = () => show(prevScr === "usr" ? "list" : prevScr);
+$("sfile").onchange = addStory;
+$("svm").onclick = e => { if (e.offsetX < e.currentTarget.clientWidth / 3) { sv.i = Math.max(0, sv.i - 1); showStory(); } else nextStory(); };
 $("adm").onclick = openAdmin; $("aback").onclick = () => show("list");
 $("me").onclick = openProfile; $("pback").onclick = () => show("list");
-$("pphoto").onclick = () => $("pfile").click(); $("pfile").onchange = pickFile;
+$("pphoto").onclick = () => $("pfile").click();
+$("pfile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { pBlob = await shrink(f, 256, true); drawPav(); } catch (x) { alert(x.message); } };
 $("pnophoto").onclick = () => { pUrl = null; pBlob = null; drawPav(); };
 $("psave").onclick = saveProfile;
-$("logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+$("logout").onclick = async () => { try { await sb.from("devices").delete().eq("device_id", DEV); } catch (e) {} await sb.auth.signOut(); location.reload(); };
+$("dout").onclick = logoutOthers;
 grid($("grid1"), () => regAv, a => regAv = a);
-sb.auth.getSession().then(({data}) => { if (data.session) enter(data.session.user); });
+sb.auth.onAuthStateChange((ev, ses) => {
+  try {
+    if (ses) localStorage.setItem("msg_bk", JSON.stringify({access_token: ses.access_token, refresh_token: ses.refresh_token}));
+    else if (ev === "SIGNED_OUT") localStorage.removeItem("msg_bk");
+  } catch (e) {}
+});
+(async function boot() {
+  let ses = null;
+  try {
+    ses = (await sb.auth.getSession()).data.session;
+    if (!ses) {
+      const bk = localStorage.getItem("msg_bk");
+      if (bk) ses = (await sb.auth.setSession(JSON.parse(bk))).data.session;
+    }
+  } catch (e) {}
+  if (!ses) { show("auth"); return; }
+  try { await enter(ses.user); }
+  catch (e) { show("auth"); $("err").textContent = "Не удалось загрузить данные. Проверьте интернет и обновите страницу."; }
+})();
 </script>
 </body>
 </html>
