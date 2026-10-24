@@ -87,6 +87,18 @@ input[type=checkbox]{padding:0;width:20px;height:20px}
 select{border:2px solid var(--line);background:var(--bg);color:var(--text);padding:10px;font:inherit;min-width:0}
 .cmb{display:block;background:none;border:0;color:var(--acc);padding:6px 0 0;font:inherit;font-size:13px;cursor:pointer}
 #msb{max-height:85vh;overflow-y:auto}
+.wpt.sel{border-color:var(--acc)}
+.pst-sunset{--pbg:linear-gradient(160deg,#ff7e5f,#feb47b)}
+.pst-neon{--pbg:linear-gradient(160deg,#6a00ff,#0078d7)}
+.pst-forest{--pbg:linear-gradient(160deg,#134e5e,#71b280)}
+.pst-mono{--pbg:linear-gradient(160deg,#2b2b2b,#666)}
+.pst-min{--pbg:linear-gradient(160deg,#0078d7,#00b7c3)}
+.pst:not(.pst-classic){background:var(--pbg) no-repeat center top/100% 255px}
+.pst:not(.pst-classic) .pname,.pst:not(.pst-classic) .pstat{color:#fff}
+.pst.pst-min{background-size:100% 215px}
+.pst-min .pav{border-radius:24px!important}
+.pst-min .big{width:110px;height:110px;font-size:56px;margin:20px 16px 8px}
+.pst-min .pname,.pst-min .pstat{text-align:left;padding:0 16px}
 </style>
 </head>
 <body>
@@ -106,6 +118,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   </div>
   <div class="err" id="err"></div>
   <button class="btn" id="submit">Войти</button>
+  <button class="btn g" id="authcancel" style="display:none">Отмена</button>
 </div></div>
 
 <div class="screen" id="list">
@@ -116,7 +129,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 </div>
 
 <div class="screen" id="chat">
-  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button></header>
+  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
   <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
@@ -186,6 +199,13 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
     <div class="lbl">Имя</div><input id="pname" maxlength="24">
     <div class="lbl">Юзернейм</div><input id="phandle" maxlength="20" autocapitalize="none">
     <div class="lbl">Описание</div><textarea id="pbio" maxlength="200" rows="3"></textarea>
+    <div class="lbl">Стиль профиля</div>
+    <div class="grid" id="pstg" style="grid-template-columns:repeat(3,1fr)"></div>
+    <div class="lbl">Музыка профиля</div>
+    <input id="pmtitle" maxlength="60" placeholder="Название трека">
+    <div style="display:flex;gap:8px"><button class="btn s" id="pmup">Загрузить аудио</button><button class="btn s g" id="pmdel">Убрать</button></div>
+    <div class="lbl" id="pmstat"></div>
+    <input type="file" id="pmfile" accept="audio/*" style="display:none">
     <div class="err" id="perr"></div>
     <button class="btn" id="psave">Сохранить</button>
     <button class="btn g" id="logout">Выйти</button>
@@ -235,12 +255,18 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 <div class="screen" id="set">
   <header><span class="t">Настройки</span></header>
   <div class="scroll">
+    <div class="row" id="sacc"><div class="av s">👥</div><div class="rt"><b>Аккаунты (до 4)</b></div></div>
     <div class="row" id="sedit"><div class="av s">✏️</div><div class="rt"><b>Редактировать профиль</b></div></div>
     <div class="row" id="sshop"><div class="av s">⭐</div><div class="rt"><b>Звёзды и Премиум</b></div></div>
     <div class="row" id="sdev"><div class="av s">📱</div><div class="rt"><b>Устройства</b></div></div>
     <div class="row" id="sadm" style="display:none"><div class="av s">🛡</div><div class="rt"><b>Админ-панель</b></div></div>
     <div class="row" id="sout"><div class="av s">🚪</div><div class="rt"><b>Выйти из аккаунта</b></div></div>
   </div>
+</div>
+
+<div class="screen" id="acc">
+  <header><button id="accback">←</button><span class="t">Аккаунты</span></header>
+  <div class="scroll" id="accbox"></div>
 </div>
 
 <div class="screen" id="dv">
@@ -282,7 +308,7 @@ let me = null, cur = null, mode = "login", kind = "group", subscribed = false, f
 let prof = {}, chats = {}, mem = new Set(), all = [], stories = {};
 let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null, ciUrl = null, ciBlob = null;
 let scr = "auth", prevScr = "auth", sv = {list: [], i: 0, t: null};
-let cm = null, ccount = {};
+let cm = null, ccount = {}, cleared = {}, adding = false, pStyle = "classic", pMusic = null, pMFile = null;
 
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
 function show(id) {
@@ -381,7 +407,7 @@ async function submit() {
     const {data, error} = await sb.auth.signUp({email, password, options: {data: {username, handle, avatar: regAv}}});
     if (error) { $("err").textContent = error.message; return; }
     if (!data.session) { setMode("login"); $("err").textContent = "Мы отправили письмо. Подтвердите почту и войдите."; return; }
-    enter(data.session.user);
+    if (adding) { adding = false; location.reload(); } else enter(data.session.user);
   } else {
     const {data, error} = await sb.auth.signInWithPassword({email, password});
     if (error) {
@@ -390,7 +416,7 @@ async function submit() {
         : /invalid login/i.test(m) ? "Неверная почта или пароль. Если вы ещё не регистрировались, откройте «Регистрация»." : m;
       return;
     }
-    enter(data.user);
+    if (adding) { adding = false; location.reload(); } else enter(data.user);
   }
 }
 
@@ -402,8 +428,9 @@ async function loadProfiles(ids) {
   (data || []).forEach(p => prof[p.id] = p);
 }
 async function loadChats() {
-  const m = await sb.from("chat_members").select("chat_id").eq("user_id", me.id);
+  const m = await sb.from("chat_members").select("chat_id,cleared_at").eq("user_id", me.id);
   const ids = (m.data || []).map(x => x.chat_id);
+  cleared = {}; (m.data || []).forEach(x => { if (x.cleared_at) cleared[x.chat_id] = x.cleared_at; });
   mem = new Set(ids); all = [];
   if (ids.length) {
     const c = await sb.from("chats").select("*").in("id", ids);
@@ -414,7 +441,7 @@ async function loadChats() {
       (o.data || []).forEach(x => { chats[x.chat_id].other = x.user_id; others.push(x.user_id); });
     }
     const r = await sb.from("messages").select("*").in("chat_id", ids).order("created_at", {ascending: false}).limit(500);
-    all = (r.data || []).reverse();
+    all = (r.data || []).reverse().filter(x => !cleared[x.chat_id] || x.created_at > cleared[x.chat_id]);
     await loadProfiles(all.map(x => x.user_id).concat(list.map(x => x.owner_id), others));
   }
   renderList();
@@ -437,7 +464,8 @@ async function enter(user) {
   let {data} = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (!data) data = {id: user.id, username: user.user_metadata?.username || "user", handle: user.user_metadata?.handle || "", bio: "", avatar: user.user_metadata?.avatar || AV[0], avatar_url: null};
   me = data; prof[me.id] = me;
-  if (me.banned) { await sb.auth.signOut(); me = null; show("auth"); $("err").textContent = "Ваш аккаунт заблокирован."; return; }
+  if (me.banned) { await sb.auth.signOut({scope: "local"}); me = null; show("auth"); $("err").textContent = "Ваш аккаунт заблокирован."; return; }
+  accInfo();
   $("sadm").style.display = me.is_admin ? "" : "none"; renderNav();
   show("list"); ping();
   await loadChats(); loadStories();
@@ -613,11 +641,12 @@ async function openUser(id) {
   const {data} = await sb.from("profiles").select("*").eq("id", id).maybeSingle();
   if (!data) return;
   prof[id] = data;
-  const b = $("ubox"); b.textContent = "";
+  const b = $("ubox"); b.textContent = ""; b.className = "pst pst-" + (data.pstyle || "classic");
   b.append(bigAv(data), nameLine(data), statusLine(seen(data.last_seen)));
   if (id !== me.id) { const row = el("div", "acts"); row.append(actBtn("💬", "Чат", () => writeTo(id)), actBtn("🎁", "Подарок", () => openGifts(id))); b.append(row); }
   b.append(infRow("Имя пользователя", "@" + data.handle));
   if (data.bio) b.append(infRow("О себе", data.bio));
+  if (data.music_url) b.append(musicCard(data));
   const g = await sb.from("gift_sends").select("gifts(emoji)").eq("to_user", id).limit(200);
   const cnt = {}; (g.data || []).forEach(x => { const e = x.gifts && x.gifts.emoji; if (e) cnt[e] = (cnt[e] || 0) + 1; });
   const ge = Object.keys(cnt);
@@ -709,7 +738,7 @@ function openProfile() {
   pEmoji = me.avatar; pUrl = me.avatar_url; pBlob = null;
   $("pname").value = me.username; $("phandle").value = me.handle; $("pbio").value = me.bio || ""; $("perr").textContent = "";
   grid($("grid2"), () => pEmoji, a => { pEmoji = a; pUrl = null; pBlob = null; drawPav(); });
-  drawPav(); show("prof");
+  drawPav(); pStyle = me.pstyle || "classic"; pMusic = me.music_url || null; pMFile = null; $("pmtitle").value = me.music_title || ""; $("pmstat").textContent = pMusic ? "Трек загружен" : ""; drawStyles(); show("prof");
 }
 async function saveProfile() {
   const username = $("pname").value.trim(), handle = clean($("phandle").value);
@@ -719,10 +748,19 @@ async function saveProfile() {
   try {
     let url = pUrl;
     if (pBlob) url = await uploadAvatar(pBlob, "avatar");
-    const upd = {username, handle, bio: $("pbio").value.trim(), avatar: pEmoji, avatar_url: url};
+    let murl = pMusic;
+    if (pMFile) {
+      const ext = (pMFile.name.split(".").pop() || "mp3").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp3";
+      const path = me.id + "/music-" + crypto.randomUUID() + "." + ext;
+      const up = await sb.storage.from("media").upload(path, pMFile, {contentType: pMFile.type || "audio/mpeg"});
+      if (up.error) throw up.error;
+      murl = sb.storage.from("media").getPublicUrl(path).data.publicUrl;
+    }
+    const mt = $("pmtitle").value.trim();
+    const upd = {username, handle, bio: $("pbio").value.trim(), avatar: pEmoji, avatar_url: url, pstyle: pStyle, music_url: murl, music_title: murl ? (mt || "Мой трек") : null};
     const {error} = await sb.from("profiles").update(upd).eq("id", me.id);
     if (error) throw error;
-    Object.assign(me, upd); prof[me.id] = me; renderList(); renderStories(); renderNav(); openMp();
+    Object.assign(me, upd); prof[me.id] = me; renderList(); renderStories(); renderNav(); accInfo(); openMp();
   } catch (x) { $("perr").textContent = x.code === "23505" ? "Этот юзернейм занят" : x.message; }
 }
 
@@ -932,6 +970,7 @@ function openMp() { show("mp"); renderMp(); }
 async function renderMp() {
   const b = $("mpbox"); b.textContent = "";
   await refreshMe(); renderNav();
+  b.className = "pst pst-" + (me.pstyle || "classic");
   b.append(bigAv(me), nameLine(me), statusLine("в сети"));
   const row = el("div", "acts");
   row.append(actBtn("📷", "Выбрать фото", () => $("mpfile").click()), actBtn("✏️", "Изменить", openProfile), actBtn("⚙️", "Настройки", () => show("set")));
@@ -939,6 +978,7 @@ async function renderMp() {
   b.append(infRow("Звёзды и Премиум", "⭐ " + (me.stars || 0) + (isPrem(me) ? " · 💎 до " + new Date(me.premium_until).toLocaleDateString("ru-RU") : ""), openShop));
   b.append(infRow("Имя пользователя", "@" + me.handle));
   if (me.bio) b.append(infRow("О себе", me.bio));
+  if (me.music_url) b.append(musicCard(me));
   const oc = await sb.from("chats").select("*").eq("owner_id", me.id).in("kind", ["group", "channel"]);
   const own = oc.data || [];
   if (own.length) {
@@ -1056,6 +1096,93 @@ async function loadLinkOptions(c, own) {
   sel.value = c.linked_group_id || "";
 }
 
+/* ---------- несколько аккаунтов ---------- */
+const accGet = () => { try { return JSON.parse(localStorage.getItem("msg_accounts") || "[]"); } catch (e) { return []; } };
+const accSet = a => { try { localStorage.setItem("msg_accounts", JSON.stringify(a)); } catch (e) {} };
+function accSave(ses) {
+  const a = accGet(); let x = a.find(i => i.id === ses.user.id);
+  if (!x) { if (a.length >= 4) return; x = {id: ses.user.id}; a.push(x); }
+  x.access_token = ses.access_token; x.refresh_token = ses.refresh_token;
+  accSet(a);
+}
+function accInfo() {
+  if (!me) return;
+  const a = accGet(), x = a.find(i => i.id === me.id);
+  if (x) { Object.assign(x, {name: me.username, handle: me.handle, avatar: me.avatar, avatar_url: me.avatar_url}); accSet(a); }
+}
+function renderAcc() {
+  const b = $("accbox"); b.textContent = ""; const list = accGet();
+  b.append(el("div", "lbl", "  Аккаунты на этом устройстве: " + list.length + " из 4"));
+  list.forEach(a => {
+    const isCur = me && a.id === me.id, rt = el("div", "rt");
+    rt.append(el("b", "", (a.name || "Аккаунт") + (isCur ? " · текущий" : "")), el("div", "", a.handle ? "@" + a.handle : ""));
+    const r = el("div", "row"); r.append(avEl({avatar: a.avatar || "👤", avatar_url: a.avatar_url}), rt);
+    if (!isCur) {
+      r.onclick = () => switchTo(a);
+      const x = el("button", "btn s g", "✕");
+      x.onclick = ev => { ev.stopPropagation(); if (confirm("Убрать аккаунт с этого устройства?")) { accSet(accGet().filter(i => i.id !== a.id)); renderAcc(); } };
+      r.append(x);
+    }
+    b.append(r);
+  });
+  if (list.length < 4) {
+    const n = el("button", "btn", "＋ Добавить аккаунт"); n.style.margin = "12px 16px";
+    n.onclick = () => { adding = true; setMode("login"); $("email").value = ""; $("pass").value = ""; $("authcancel").style.display = ""; show("auth"); };
+    b.append(n);
+  }
+}
+async function switchTo(a) {
+  const {error} = await sb.auth.setSession({access_token: a.access_token, refresh_token: a.refresh_token});
+  if (error) { alert("Сессия устарела. Войдите в этот аккаунт заново."); accSet(accGet().filter(i => i.id !== a.id)); renderAcc(); return; }
+  location.reload();
+}
+async function doLogout() {
+  try { await sb.from("devices").delete().eq("device_id", DEV); } catch (e) {}
+  const rest = accGet().filter(a => a.id !== (me && me.id)); accSet(rest);
+  await sb.auth.signOut({scope: "local"});
+  if (rest.length) {
+    const {error} = await sb.auth.setSession({access_token: rest[0].access_token, refresh_token: rest[0].refresh_token});
+    if (error) accSet(rest.slice(1));
+  }
+  location.reload();
+}
+
+/* ---------- стиль профиля и музыка ---------- */
+const PST = [["classic", "Классика", "var(--bar)"], ["sunset", "Закат", "linear-gradient(160deg,#ff7e5f,#feb47b)"], ["neon", "Неон", "linear-gradient(160deg,#6a00ff,#0078d7)"],
+  ["forest", "Лес", "linear-gradient(160deg,#134e5e,#71b280)"], ["mono", "Графит", "linear-gradient(160deg,#2b2b2b,#666)"], ["min", "Минимал", "linear-gradient(160deg,#0078d7,#00b7c3)"]];
+function drawStyles() {
+  const g = $("pstg"); g.textContent = "";
+  PST.forEach(([k, n, bg]) => {
+    const t = el("div", "wpt" + (pStyle === k ? " sel" : ""), n); t.style.background = bg; t.style.aspectRatio = "2/1";
+    if (k === "classic") t.style.color = "var(--text)";
+    t.onclick = () => { pStyle = k; drawStyles(); }; g.append(t);
+  });
+}
+function musicCard(p) {
+  const d = el("div", "inf"), a = el("audio");
+  a.src = p.music_url; a.controls = true; a.preload = "none"; a.style.cssText = "width:100%;margin-top:6px";
+  d.append(el("div", "v", "🎵 " + (p.music_title || "Трек")), a, el("div", "l", "Музыка профиля"));
+  return d;
+}
+
+/* ---------- меню чата и очистка ---------- */
+function chatMenu() {
+  const c = chats[cur], b = $("msb"); b.textContent = "";
+  const add = (t, fn) => { const x = el("button", "btn g", t); x.onclick = () => { closeMenu(); fn(); }; b.append(x); };
+  add("🖼 Обои чата", openWp);
+  add("🧹 Очистить у меня", () => clearChat(false));
+  if (c.kind === "dm" || c.kind === "saved" || c.owner_id === me.id || me.is_admin) add("🗑 Очистить для всех", () => clearChat(true));
+  const x = el("button", "btn", "Отмена"); x.onclick = closeMenu; b.append(x);
+  $("ms").style.display = "flex";
+}
+async function clearChat(forAll) {
+  if (!confirm(forAll ? "Удалить ВСЕ сообщения в этом чате у всех участников?" : "Очистить историю у вас? У других сообщения останутся.")) return;
+  const {error} = await sb.rpc("clear_chat", {cid: cur, for_all: forAll});
+  if (error) { alert(error.message); return; }
+  all = all.filter(m => m.chat_id !== cur); if (!forAll) cleared[cur] = new Date().toISOString();
+  renderList(); renderChat();
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => e.key === "Enter" && submit();
@@ -1082,6 +1209,17 @@ document.querySelectorAll("#nav button").forEach(b => b.onclick = () => navGo(b.
 $("sedit").onclick = openProfile; $("sshop").onclick = openShop; $("sdev").onclick = openDevices; $("sadm").onclick = openAdmin;
 $("sout").onclick = () => $("logout").onclick(); $("dvback").onclick = () => show("set");
 $("cmback").onclick = () => { show("chat"); renderChat(); }; $("cmsend").onclick = sendComment; $("cmtext").onkeydown = e => e.key === "Enter" && sendComment();
+$("sacc").onclick = () => { show("acc"); renderAcc(); }; $("accback").onclick = () => show("set");
+$("authcancel").onclick = () => { adding = false; $("authcancel").style.display = "none"; show("set"); };
+$("cmenu").onclick = chatMenu;
+$("pmup").onclick = () => $("pmfile").click();
+$("pmfile").onchange = e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  if (f.size > 15 * 1024 * 1024) { alert("Файл больше 15 МБ"); return; }
+  pMFile = f; $("pmstat").textContent = "Выбран файл: " + f.name + " (сохранится после «Сохранить»)";
+  if (!$("pmtitle").value) $("pmtitle").value = f.name.replace(/\.[^.]+$/, "").slice(0, 60);
+};
+$("pmdel").onclick = () => { pMusic = null; pMFile = null; $("pmtitle").value = ""; $("pmstat").textContent = "Музыка будет убрана после «Сохранить»"; };
 $("cgo").onclick = loadContacts; $("cq").onkeydown = e => e.key === "Enter" && loadContacts();
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -1103,12 +1241,12 @@ $("pphoto").onclick = () => $("pfile").click();
 $("pfile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; try { pBlob = await shrink(f, 256, true); drawPav(); } catch (x) { alert(x.message); } };
 $("pnophoto").onclick = () => { pUrl = null; pBlob = null; drawPav(); };
 $("psave").onclick = saveProfile;
-$("logout").onclick = async () => { try { await sb.from("devices").delete().eq("device_id", DEV); } catch (e) {} await sb.auth.signOut(); location.reload(); };
+$("logout").onclick = doLogout;
 $("dout").onclick = logoutOthers;
 grid($("grid1"), () => regAv, a => regAv = a);
 sb.auth.onAuthStateChange((ev, ses) => {
   try {
-    if (ses) localStorage.setItem("msg_bk", JSON.stringify({access_token: ses.access_token, refresh_token: ses.refresh_token}));
+    if (ses) { localStorage.setItem("msg_bk", JSON.stringify({access_token: ses.access_token, refresh_token: ses.refresh_token})); accSave(ses); }
     else if (ev === "SIGNED_OUT") localStorage.removeItem("msg_bk");
   } catch (e) {}
 });
@@ -1121,6 +1259,7 @@ sb.auth.onAuthStateChange((ev, ses) => {
       if (bk) ses = (await sb.auth.setSession(JSON.parse(bk))).data.session;
     }
   } catch (e) {}
+  if (ses) accSave(ses);
   if (!ses) { show("auth"); return; }
   try { await enter(ses.user); }
   catch (e) { show("auth"); $("err").textContent = "Не удалось загрузить данные. Проверьте интернет и обновите страницу."; }
