@@ -9,12 +9,14 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <style>
 :root{--acc:#0078d7;--bg:#fff;--text:#000;--sub:#6b6b6b;--in:#e6e6e6;--out:#cce4f7;--line:#d0d0d0;--bar:#f2f2f2}
 @media (prefers-color-scheme:dark){:root{--bg:#000;--text:#fff;--sub:#9a9a9a;--in:#2b2b2b;--out:#0b4f86;--line:#333;--bar:#1f1f1f}}
 *{box-sizing:border-box;border-radius:0}
-html,body{height:100%;margin:0}
+html,body{height:100%;margin:0;overflow:hidden}
+body{height:100dvh}
+#auth{overflow-y:auto}
 body{background:var(--bg);color:var(--text);font:15px/1.35 "Segoe UI",-apple-system,Roboto,sans-serif;display:flex;flex-direction:column}
 .screen{display:none;flex:1;flex-direction:column;min-height:0}.screen.on{display:flex}
 header{background:var(--acc);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:14px;font-size:20px;font-weight:300}
@@ -111,8 +113,8 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   <input id="email" type="email" placeholder="Почта" autocomplete="email">
   <input id="pass" type="password" placeholder="Пароль (от 6 символов)">
   <div id="regbox" style="display:none;flex-direction:column;gap:10px">
-    <input id="uname" maxlength="24" placeholder="Ваше имя">
-    <input id="rhandle" maxlength="20" placeholder="Юзернейм (a-z, 0-9, _)" autocapitalize="none">
+    <input id="uname" autocomplete="off" maxlength="24" placeholder="Ваше имя">
+    <input id="rhandle" autocomplete="off" maxlength="20" placeholder="Юзернейм (a-z, 0-9, _)" autocapitalize="none">
     <div class="lbl">Выберите аватар (фото можно загрузить в профиле)</div>
     <div class="grid" id="grid1"></div>
   </div>
@@ -132,7 +134,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
-  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><input id="text" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
+  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><input id="text" autocomplete="off" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
   <div class="bar ro" id="robar" style="display:none">В этом канале пишет только владелец</div>
   <input type="file" id="mfile" accept="image/*,video/*" style="display:none">
 </div>
@@ -142,9 +144,9 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   <div class="scroll"><div class="form">
     <div class="tabs"><button id="kg" class="on">Группа</button><button id="kc">Канал</button></div>
     <div class="lbl" id="khint"></div>
-    <input id="ctitle" maxlength="40" placeholder="Название">
-    <input id="chandle" maxlength="20" placeholder="Юзернейм (необязательно, a-z, 0-9, _)" autocapitalize="none">
-    <input id="cdescin" maxlength="200" placeholder="Описание">
+    <input id="ctitle" autocomplete="off" maxlength="40" placeholder="Название">
+    <input id="chandle" autocomplete="off" maxlength="20" placeholder="Юзернейм (необязательно, a-z, 0-9, _)" autocapitalize="none">
+    <input id="cdescin" autocomplete="off" maxlength="200" placeholder="Описание">
     <div class="err" id="cerr"></div>
     <button class="btn" id="ccreate">Создать</button>
     <div class="lbl">Фото чата можно поставить потом: откройте чат и нажмите на его название.</div>
@@ -159,8 +161,8 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
       <button class="btn s" id="cphoto">Загрузить фото</button><button class="btn s g" id="cnophoto">Убрать фото</button>
     </div>
     <input type="file" id="cfile" accept="image/*" style="display:none">
-    <div class="lbl">Название</div><input id="cit" maxlength="40">
-    <div class="lbl">Юзернейм</div><input id="cih" maxlength="20" autocapitalize="none" placeholder="не задан">
+    <div class="lbl">Название</div><input id="cit" autocomplete="off" maxlength="40">
+    <div class="lbl">Юзернейм</div><input id="cih" autocomplete="off" maxlength="20" autocapitalize="none" placeholder="не задан">
     <div class="lbl">Описание</div><textarea id="cid" maxlength="200" rows="3"></textarea>
     <div class="lbl" id="cilbl" style="display:none">Группа для комментариев под постами</div>
     <select id="cilink" style="display:none"></select>
@@ -173,7 +175,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 <div class="screen" id="fd">
   <header><button id="fdback">←</button><span class="t">Поиск</span></header>
   
-  <div style="padding:10px;display:flex;gap:8px"><input id="fq" placeholder="Люди, группы и каналы" style="flex:1" autocapitalize="none"><button class="btn" id="fgo">Найти</button></div>
+  <div style="padding:10px;display:flex;gap:8px"><input id="fq" autocomplete="off" placeholder="Люди, группы и каналы" style="flex:1" autocapitalize="none"><button class="btn" id="fgo">Найти</button></div>
   <div class="scroll" id="fres"></div>
 </div>
 
@@ -196,13 +198,13 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
     </div>
     <input type="file" id="pfile" accept="image/*" style="display:none">
     <div class="lbl">Или эмодзи</div><div class="grid" id="grid2"></div>
-    <div class="lbl">Имя</div><input id="pname" maxlength="24">
-    <div class="lbl">Юзернейм</div><input id="phandle" maxlength="20" autocapitalize="none">
+    <div class="lbl">Имя</div><input id="pname" autocomplete="off" maxlength="24">
+    <div class="lbl">Юзернейм</div><input id="phandle" autocomplete="off" maxlength="20" autocapitalize="none">
     <div class="lbl">Описание</div><textarea id="pbio" maxlength="200" rows="3"></textarea>
     <div class="lbl">Стиль профиля</div>
     <div class="grid" id="pstg" style="grid-template-columns:repeat(3,1fr)"></div>
     <div class="lbl">Музыка профиля</div>
-    <input id="pmtitle" maxlength="60" placeholder="Название трека">
+    <input id="pmtitle" autocomplete="off" maxlength="60" placeholder="Название трека">
     <div style="display:flex;gap:8px"><button class="btn s" id="pmup">Загрузить аудио</button><button class="btn s g" id="pmdel">Убрать</button></div>
     <div class="lbl" id="pmstat"></div>
     <input type="file" id="pmfile" accept="audio/*" style="display:none">
@@ -215,7 +217,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 <div class="screen" id="cmt">
   <header><button id="cmback">←</button><span class="t">Комментарии</span></header>
   <div class="scroll" id="cmbox"></div>
-  <div class="bar"><input id="cmtext" maxlength="500" placeholder="Комментарий"><button id="cmsend">➤</button></div>
+  <div class="bar"><input id="cmtext" autocomplete="off" maxlength="500" placeholder="Комментарий"><button id="cmsend">➤</button></div>
 </div>
 
 <div class="screen" id="shopscr">
@@ -248,7 +250,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 
 <div class="screen" id="ct">
   <header><span class="t">Контакты</span></header>
-  <div style="padding:10px;display:flex;gap:8px"><input id="cq" placeholder="Имя или @юзернейм" style="flex:1" autocapitalize="none"><button class="btn" id="cgo">Найти</button></div>
+  <div style="padding:10px;display:flex;gap:8px"><input id="cq" autocomplete="off" placeholder="Имя или @юзернейм" style="flex:1" autocapitalize="none"><button class="btn" id="cgo">Найти</button></div>
   <div class="scroll" id="cres"></div>
 </div>
 
@@ -1185,8 +1187,8 @@ async function clearChat(forAll) {
 
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
-$("submit").onclick = submit; $("pass").onkeydown = e => e.key === "Enter" && submit();
-$("text").onkeydown = e => e.key === "Enter" && send(); $("send").onclick = () => send();
+$("submit").onclick = submit; $("pass").onkeydown = e => { if (e.key === "Enter") submit(); };
+$("text").onkeydown = e => { if (e.key === "Enter") send(); }; $("send").onclick = () => send();
 $("attach").onclick = () => $("mfile").click(); $("mfile").onchange = attach;
 $("back").onclick = () => { cur = null; renderList(); show("list"); loadStories(); };
 $("title").onclick = () => { const c = chats[cur]; if (c.kind === "dm") openUser(c.other); else if (c.kind !== "saved") openInfo(); };
@@ -1200,7 +1202,7 @@ $("cfile").onchange = async e => { const f = e.target.files[0]; e.target.value =
 $("cnophoto").onclick = () => { ciUrl = null; ciBlob = null; drawCav(); };
 $("find").onclick = () => { $("fq").value = ""; show("fd"); search(); };
 
-$("fdback").onclick = () => show("list"); $("fgo").onclick = search; $("fq").onkeydown = e => e.key === "Enter" && search();
+$("fdback").onclick = () => show("list"); $("fgo").onclick = search; $("fq").onkeydown = e => { if (e.key === "Enter") search(); };
 $("uback").onclick = () => show(prevScr === "usr" ? "list" : prevScr);
 $("sfile").onchange = addStory;
 $("svm").onclick = e => { if (e.offsetX < e.currentTarget.clientWidth / 3) { sv.i = Math.max(0, sv.i - 1); showStory(); } else nextStory(); };
@@ -1208,7 +1210,7 @@ $("aback").onclick = () => show("set");
 document.querySelectorAll("#nav button").forEach(b => b.onclick = () => navGo(b.dataset.s));
 $("sedit").onclick = openProfile; $("sshop").onclick = openShop; $("sdev").onclick = openDevices; $("sadm").onclick = openAdmin;
 $("sout").onclick = () => $("logout").onclick(); $("dvback").onclick = () => show("set");
-$("cmback").onclick = () => { show("chat"); renderChat(); }; $("cmsend").onclick = sendComment; $("cmtext").onkeydown = e => e.key === "Enter" && sendComment();
+$("cmback").onclick = () => { show("chat"); renderChat(); }; $("cmsend").onclick = sendComment; $("cmtext").onkeydown = e => { if (e.key === "Enter") sendComment(); };
 $("sacc").onclick = () => { show("acc"); renderAcc(); }; $("accback").onclick = () => show("set");
 $("authcancel").onclick = () => { adding = false; $("authcancel").style.display = "none"; show("set"); };
 $("cmenu").onclick = chatMenu;
@@ -1220,7 +1222,7 @@ $("pmfile").onchange = e => {
   if (!$("pmtitle").value) $("pmtitle").value = f.name.replace(/\.[^.]+$/, "").slice(0, 60);
 };
 $("pmdel").onclick = () => { pMusic = null; pMFile = null; $("pmtitle").value = ""; $("pmstat").textContent = "Музыка будет убрана после «Сохранить»"; };
-$("cgo").onclick = loadContacts; $("cq").onkeydown = e => e.key === "Enter" && loadContacts();
+$("cgo").onclick = loadContacts; $("cq").onkeydown = e => { if (e.key === "Enter") loadContacts(); };
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   try {
