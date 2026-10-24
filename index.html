@@ -63,7 +63,7 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
 </div></div>
 
 <div class="screen" id="list">
-  <header><span class="t">Чаты</span><button id="find" title="Найти">🔍</button><button id="new" title="Создать">＋</button><button id="me" title="Профиль">👤</button></header>
+  <header><span class="t">Чаты</span><button id="adm" title="Админ-панель" style="display:none">🛡</button><button id="find" title="Найти">🔍</button><button id="new" title="Создать">＋</button><button id="me" title="Профиль">👤</button></header>
   <div class="scroll" id="rooms"></div>
 </div>
 
@@ -90,6 +90,11 @@ input:focus,textarea:focus{outline:0;border-color:var(--acc)}
   <header><button id="fdback">←</button><span class="t">Поиск чатов</span></header>
   <div style="padding:10px;display:flex;gap:8px"><input id="fq" placeholder="Название группы или канала" style="flex:1"><button class="btn" id="fgo">Найти</button></div>
   <div class="scroll" id="fres"></div>
+</div>
+
+<div class="screen" id="admin">
+  <header><button id="aback">←</button><span class="t">Админ-панель</span></header>
+  <div class="scroll" id="abox"></div>
 </div>
 
 <div class="screen" id="prof">
@@ -126,6 +131,7 @@ let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null;
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
 const show = id => document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
 const who = id => prof[id] || {username: "…", avatar: "👤"};
+const badge = p => p && p.verified ? " ✔" : "";
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 
 function avEl(p, small) {
@@ -197,6 +203,7 @@ async function enter(user) {
   let {data} = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (!data) data = {id: user.id, username: user.user_metadata?.username || "user", handle: user.user_metadata?.handle || "", bio: "", avatar: user.user_metadata?.avatar || AV[0], avatar_url: null};
   me = data; prof[me.id] = me;
+  $("adm").style.display = me.is_admin ? "" : "none";
   show("list");
   await loadChats();
   if (!subscribed) {
@@ -220,7 +227,7 @@ function renderList() {
   items.forEach(c => {
     const m = last[c.id], rt = el("div", "rt"), b = el("b");
     b.append(el("span", "", c.title), el("i", "", m ? hm(m.created_at) : ""));
-    rt.append(b, el("div", "", m ? who(m.user_id).username + ": " + m.text : (c.kind === "channel" ? "Канал" : "Группа")));
+    rt.append(b, el("div", "", m ? who(m.user_id).username + badge(who(m.user_id)) + ": " + m.text : (c.kind === "channel" ? "Канал" : "Группа")));
     const r = el("div", "row"); r.append(chatAv(c), rt); r.onclick = () => open(c.id); box.appendChild(r);
   });
 }
@@ -239,7 +246,7 @@ function renderChat() {
   list.forEach(m => {
     const mine = m.user_id === me.id, p = who(m.user_id);
     const w = el("div", "mw" + (mine ? " me" : "")), d = el("div", "m");
-    d.append(el("small", "", p.username), el("span", "", m.text), el("time", "", hm(m.created_at)));
+    d.append(el("small", "", p.username + badge(p)), el("span", "", m.text), el("time", "", hm(m.created_at)));
     if (!mine) w.append(avEl(p, true));
     w.append(d); box.appendChild(w);
   });
@@ -324,6 +331,43 @@ async function saveProfile() {
   renderList(); show("list");
 }
 
+/* ---------- админ-панель ---------- */
+async function openAdmin() {
+  show("admin");
+  const box = $("abox"); box.textContent = "";
+  const [u, c] = await Promise.all([
+    sb.from("profiles").select("*").order("username").limit(200),
+    sb.from("chats").select("*").order("created_at", {ascending: false}).limit(100)]);
+  const users = u.data || [], cl = c.data || [];
+  const call = async (fn, args) => { const {error} = await sb.rpc(fn, args); if (error) alert(error.message); else openAdmin(); };
+  box.append(el("div", "lbl", "  Пользователи: " + users.length));
+  users.forEach(p => {
+    prof[p.id] = p; if (p.id === me.id) { me.verified = p.verified; me.is_admin = p.is_admin; }
+    const rt = el("div", "rt");
+    rt.append(el("b", "", p.username + badge(p)), el("div", "", "@" + p.handle + (p.is_admin ? " · админ" : "")));
+    const b1 = el("button", "btn s", p.verified ? "Снять ✔" : "Дать ✔");
+    b1.onclick = () => call("admin_set_verified", {uid: p.id, val: !p.verified});
+    const b2 = el("button", "btn s g", p.is_admin ? "Убрать админа" : "Сделать админом");
+    b2.onclick = () => call("admin_set_admin", {uid: p.id, val: !p.is_admin});
+    const act = el("div"); act.style.cssText = "display:flex;flex-direction:column;gap:4px";
+    act.append(b1, b2);
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p), rt, act); box.appendChild(r);
+  });
+  box.append(el("div", "lbl", "  Чаты: " + cl.length));
+  cl.forEach(ch => {
+    const rt = el("div", "rt");
+    rt.append(el("b", "", ch.title), el("div", "", (ch.kind === "channel" ? "Канал" : "Группа") + " · " + (prof[ch.owner_id]?.username || "")));
+    const b = el("button", "btn s g", "Удалить");
+    b.onclick = async () => {
+      if (!confirm("Удалить «" + ch.title + "» со всеми сообщениями?")) return;
+      const {error} = await sb.rpc("admin_delete_chat", {cid: ch.id});
+      if (error) { alert(error.message); return; }
+      await loadChats(); openAdmin();
+    };
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(chatAv(ch), rt, b); box.appendChild(r);
+  });
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => e.key === "Enter" && submit();
@@ -335,6 +379,7 @@ $("kg").onclick = () => setKind("group"); $("kc").onclick = () => setKind("chann
 $("ccreate").onclick = createChat;
 $("find").onclick = () => { $("fq").value = ""; show("fd"); search(); };
 $("fdback").onclick = () => show("list"); $("fgo").onclick = search; $("fq").onkeydown = e => e.key === "Enter" && search();
+$("adm").onclick = openAdmin; $("aback").onclick = () => show("list");
 $("me").onclick = openProfile; $("pback").onclick = () => show("list");
 $("pphoto").onclick = () => $("pfile").click(); $("pfile").onchange = pickFile;
 $("pnophoto").onclick = () => { pUrl = null; pBlob = null; drawPav(); };
