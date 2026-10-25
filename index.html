@@ -112,6 +112,16 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 #nt{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:14;align-items:center;justify-content:center}
 #ntb{background:var(--bg);border:2px solid var(--acc);padding:18px;width:min(320px,90%);display:flex;flex-direction:column;gap:12px}
 #ntt{font-size:17px;white-space:pre-wrap;overflow-wrap:anywhere}
+#cl{display:none;position:fixed;inset:0;z-index:16;background:#111;color:#fff;flex-direction:column;align-items:center}
+#clrv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#111}
+#clinfo{position:relative;z-index:1;margin-top:50px;text-align:center;text-shadow:0 1px 4px #000}
+#clinfo .pname,#clinfo .pstat{color:#fff}
+#cllv{display:none;position:absolute;right:12px;top:calc(12px + env(safe-area-inset-top,0px));width:96px;height:132px;object-fit:cover;z-index:2;border:2px solid #fff;transform:scaleX(-1);background:#000}
+#clbar{position:absolute;bottom:calc(30px + env(safe-area-inset-bottom,0px));left:0;right:0;display:flex;justify-content:center;gap:18px;z-index:2}
+#clbar button{width:64px;height:64px;border-radius:50%!important;border:0;font-size:26px;background:rgba(255,255,255,.22);color:#fff}
+#clbar button.off{background:#fff;color:#111}
+#inc{display:none;position:fixed;inset:0;z-index:17;background:#111;color:#fff;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+#inc .pname,#inc .pstat{color:#fff}
 </style>
 </head>
 <body>
@@ -119,15 +129,22 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 <div class="screen on" id="boot"><div class="empty">Загрузка…</div></div>
 
 <div class="screen" id="auth"><div class="form">
-  <h2>Мессенджер</h2>
-  <div class="tabs"><button id="tl" class="on">Вход</button><button id="tr">Регистрация</button></div>
-  <input id="email" type="email" placeholder="Почта" autocomplete="email">
-  <input id="pass" type="password" placeholder="Пароль (от 6 символов)">
-  <div id="regbox" style="display:none;flex-direction:column;gap:10px">
-    <input id="uname" autocomplete="off" maxlength="24" placeholder="Ваше имя">
-    <input id="rhandle" autocomplete="off" maxlength="20" placeholder="Юзернейм (a-z, 0-9, _)" autocapitalize="none">
-    <div class="lbl">Выберите аватар (фото можно загрузить в профиле)</div>
-    <div class="grid" id="grid1"></div>
+  <h2 id="authtitle">Мессенджер</h2>
+  <div class="tabs" id="authtabs"><button id="tl" class="on">Вход</button><button id="tr">Регистрация</button></div>
+  <div id="formbox" style="display:flex;flex-direction:column;gap:10px">
+    <input id="tgu" autocomplete="username" autocapitalize="none" maxlength="34" placeholder="Юз Telegram: @username">
+    <input id="pass" type="password" autocomplete="current-password" placeholder="Пароль (от 6 символов)">
+    <div id="regbox" style="display:none;flex-direction:column;gap:10px">
+      <input id="uname" autocomplete="off" maxlength="24" placeholder="Ник, например: Олег">
+      <input id="rhandle" autocomplete="off" maxlength="20" placeholder="Юз в приложении: @user" autocapitalize="none">
+    </div>
+    <div id="mailbox" style="display:none"><input id="email" type="email" autocomplete="email" placeholder="Почта (только старые аккаунты)" style="width:100%"></div>
+  </div>
+  <div id="tgbox" style="display:none;flex-direction:column;gap:10px">
+    <div class="lbl">Остался последний шаг: откройте бота в Telegram, нажмите «Запустить» (Start) и вернитесь сюда.</div>
+    <a class="btn" id="tglink" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none">Открыть Telegram-бота</a>
+    <div class="lbl" id="tgstat">Ждём подтверждение…</div>
+    <button class="btn g" id="tgcancel">Отмена</button>
   </div>
   <div class="err" id="err"></div>
   <button class="btn" id="submit">Войти</button>
@@ -142,7 +159,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 </div>
 
 <div class="screen" id="chat">
-  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
+  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="callb">📞</button><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
   <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><button class="g" id="asb" style="display:none">👤</button><button class="g" id="rb">⭕</button><input id="text" autocomplete="off" maxlength="500" placeholder="Сообщение"><button id="send">🎤</button></div>
@@ -304,6 +321,20 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
   <button data-s="mp"><span id="navme"></span>Профиль</button>
 </nav>
 
+<div id="inc">
+  <div id="incav"></div>
+  <div class="pname" id="incn"></div>
+  <div class="pstat" id="inck"></div>
+  <div class="rcb" style="margin-top:30px"><button class="btn" style="background:#d13438" id="incno">✕ Отклонить</button><button class="btn" style="background:#2e9e55" id="incyes">✓ Принять</button></div>
+</div>
+
+<div id="cl">
+  <video id="clrv" autoplay playsinline></video>
+  <video id="cllv" autoplay playsinline muted></video>
+  <div id="clinfo"><div id="clav"></div><div class="pname" id="cln"></div><div class="pstat" id="cls">Вызов…</div></div>
+  <div id="clbar"><button id="clmic">🎤</button><button id="clcam">📷</button><button id="clend" style="background:#d13438">📞</button></div>
+</div>
+
 <div id="nt"><div id="ntb">
   <div style="font-size:18px;font-weight:600">📩 Сообщение от администрации</div>
   <div id="ntt"></div>
@@ -329,6 +360,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 <script>
 const SUPABASE_URL = "https://fwkcgyxmgzsixjgmpnut.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3a2NneXhtZ3pzaXhqZ21wbnV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI3NjYyMjUsImV4cCI6MjEwODM0MjIyNX0.mn8BY9rF-tuSjUMk8LwJx6IFVVPFiDLKOvqloP8kWMc";
+
+// Юзернейм вашего Telegram-бота без @ (создаётся в @BotFather)
+const TG_BOT = "vxodvwigram_bot";
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "messenger-auth", storage: window.localStorage}
@@ -420,37 +454,64 @@ async function uploadAvatar(blob, name) {
 }
 
 /* ---------- вход / регистрация ---------- */
+let tgPoll = null, tgPending = null, mailMode = false, titleTaps = 0;
 function setMode(m) {
   mode = m;
   $("tl").classList.toggle("on", m === "login"); $("tr").classList.toggle("on", m === "reg");
   $("regbox").style.display = m === "reg" ? "flex" : "none";
   $("submit").textContent = m === "reg" ? "Зарегистрироваться" : "Войти";
+  $("pass").autocomplete = m === "reg" ? "new-password" : "current-password";
   $("err").textContent = "";
 }
+const tgClean = v => v.trim().replace(/^https?:\/\/t\.me\//i, "").replace(/^@/, "").toLowerCase();
+function tgReset() {
+  clearInterval(tgPoll); tgPoll = null; tgPending = null;
+  $("tgbox").style.display = "none"; $("formbox").style.display = "flex";
+  $("authtabs").style.display = ""; $("submit").style.display = "";
+}
+async function finishLogin(user) { if (adding) { adding = false; location.reload(); } else enter(user); }
 async function submit() {
-  const email = $("email").value.trim().toLowerCase(), password = $("pass").value;
-  $("err").textContent = "";
-  if (!email || password.length < 6) { $("err").textContent = "Введите почту и пароль от 6 символов"; return; }
-  if (mode === "reg") {
-    const username = $("uname").value.trim(), handle = clean($("rhandle").value);
-    if (!username) { $("err").textContent = "Введите имя"; return; }
-    if (!HRE.test(handle)) { $("err").textContent = "Юзернейм: 3–20 символов, a-z, 0-9 и _"; return; }
-    const free = await sb.rpc("handle_free", {h: handle});
-    if (free.data === false) { $("err").textContent = "Этот юзернейм занят"; return; }
-    const {data, error} = await sb.auth.signUp({email, password, options: {data: {username, handle, avatar: regAv}}});
-    if (error) { $("err").textContent = error.message; return; }
-    if (!data.session) { setMode("login"); $("err").textContent = "Мы отправили письмо. Подтвердите почту и войдите."; return; }
-    if (adding) { adding = false; location.reload(); } else enter(data.session.user);
-  } else {
-    const {data, error} = await sb.auth.signInWithPassword({email, password});
-    if (error) {
-      const m = error.message || "";
-      $("err").textContent = /not confirmed/i.test(m) ? "Почта не подтверждена. Откройте письмо и перейдите по ссылке."
-        : /invalid login/i.test(m) ? "Неверная почта или пароль. Если вы ещё не регистрировались, откройте «Регистрация»." : m;
-      return;
-    }
-    if (adding) { adding = false; location.reload(); } else enter(data.user);
+  const password = $("pass").value; $("err").textContent = "";
+  if (password.length < 6) { $("err").textContent = "Пароль от 6 символов"; return; }
+  if (mailMode && $("email").value.trim()) {
+    const {data, error} = await sb.auth.signInWithPassword({email: $("email").value.trim().toLowerCase(), password});
+    if (error) { $("err").textContent = "Неверная почта или пароль"; return; }
+    finishLogin(data.user); return;
   }
+  const tg = tgClean($("tgu").value);
+  if (!/^[a-z0-9_]{5,32}$/.test(tg)) { $("err").textContent = "Введите свой @username из Telegram"; return; }
+  if (mode === "login") {
+    const r = await sb.rpc("tg_login_email", {p_tg: tg});
+    if (!r.data) { $("err").textContent = "Аккаунт с таким Telegram не найден. Откройте «Регистрация»."; return; }
+    const {data, error} = await sb.auth.signInWithPassword({email: r.data, password});
+    if (error) { $("err").textContent = /invalid login/i.test(error.message) ? "Неверный пароль" : error.message; return; }
+    finishLogin(data.user); return;
+  }
+  const nick = $("uname").value.trim(), handle = clean($("rhandle").value);
+  if (!nick) { $("err").textContent = "Введите ник, например: Олег"; return; }
+  if (!HRE.test(handle)) { $("err").textContent = "Юз в приложении: 3–20 символов, a-z, 0-9 и _"; return; }
+  if (TG_BOT.startsWith("ВАШ")) { $("err").textContent = "Не задан Telegram-бот (константа TG_BOT в index.html)"; return; }
+  const st = await sb.rpc("tg_start_register", {p_tg: tg, p_nick: nick, p_handle: handle});
+  if (st.error) { $("err").textContent = st.error.message; return; }
+  tgPending = {code: st.data, password};
+  $("formbox").style.display = "none"; $("authtabs").style.display = "none"; $("submit").style.display = "none";
+  $("tgbox").style.display = "flex"; $("tgstat").textContent = "Ждём подтверждение…";
+  $("tglink").href = "https://t.me/" + TG_BOT + "?start=" + st.data;
+  clearInterval(tgPoll); tgPoll = setInterval(pollTg, 2000);
+}
+async function pollTg() {
+  if (!tgPending) return;
+  const r = await sb.rpc("tg_check", {p_code: tgPending.code}), d = r.data;
+  if (!d) return;
+  if (d.expired) { tgReset(); $("err").textContent = "Время вышло. Начните заново."; return; }
+  if (!d.confirmed) return;
+  const p = tgPending; clearInterval(tgPoll); tgPoll = null;
+  $("tgstat").textContent = "✅ Подтверждено! Создаём аккаунт…";
+  const {data, error} = await sb.auth.signUp({email: "tg" + d.tg_id + "@example.com", password: p.password, options: {data: {avatar: AV[0]}}});
+  if (error) { tgReset(); $("err").textContent = error.message; return; }
+  tgPending = null;
+  if (!data.session) { tgReset(); setMode("login"); $("err").textContent = "Аккаунт создан. Теперь войдите."; return; }
+  finishLogin(data.session.user);
 }
 
 /* ---------- данные ---------- */
@@ -502,7 +563,7 @@ async function enter(user) {
   accInfo();
   $("sadm").style.display = me.is_admin ? "" : "none"; renderNav();
   show("list"); ping();
-  await loadChats(); await loadMyChannels(); loadStories(); loadNotices();
+  await loadChats(); await loadMyChannels(); loadStories(); loadNotices(); subscribeExtras(); checkIncoming();
   if (!subscribed) {
     subscribed = true;
     setInterval(ping, 60000);
@@ -520,8 +581,6 @@ async function enter(user) {
       if (i >= 0) { all[i] = p.new; renderList(); if (scr === "chat") renderChat(); }
     }).on("postgres_changes", {event: "DELETE", schema: "public", table: "messages"}, p => {
       all = all.filter(x => x.id !== p.old.id); renderList(); if (scr === "chat") renderChat();
-    }).on("postgres_changes", {event: "INSERT", schema: "public", table: "notices"}, p => {
-      if (!p.new.to_user || p.new.to_user === me.id) { noticeQ.push(p.new); showNotice(); }
     }).subscribe();
   }
 }
@@ -544,7 +603,7 @@ function renderList() {
 }
 function renderChat() {
   const c = chats[cur], box = $("msgs"); box.textContent = ""; applyWp();
-  $("title").textContent = cTitle(c); syncAs(); syncSend(); $("giftb").style.display = c.kind === "dm" ? "" : "none";
+  $("title").textContent = cTitle(c); syncAs(); syncSend(); $("giftb").style.display = c.kind === "dm" ? "" : "none"; $("callb").style.display = c.kind === "dm" && !who(c.other).is_bot ? "" : "none";
   $("cdesc").textContent = c.kind === "dm" ? (who(c.other).is_bot ? "бот" : seen(who(c.other).last_seen))
     : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
   if (c.kind === "saved") $("cdesc").textContent = "Заметки и файлы только для вас";
@@ -683,7 +742,7 @@ async function openUser(id) {
   prof[id] = data;
   const b = $("ubox"); b.textContent = ""; b.className = "pst pst-" + (data.pstyle || "classic");
   b.append(bigAv(data), nameLine(data), statusLine(data.is_bot ? "бот" : seen(data.last_seen)));
-  if (id !== me.id) { const row = el("div", "acts"); row.append(actBtn("💬", "Чат", () => writeTo(id)), actBtn("🎁", "Подарок", () => openGifts(id))); b.append(row); }
+  if (id !== me.id) { const row = el("div", "acts"); row.append(actBtn("💬", "Чат", () => writeTo(id)), actBtn("🎁", "Подарок", () => openGifts(id))); if (!data.is_bot) row.append(actBtn("📞", "Звонок", () => startCall(id, "audio")), actBtn("📹", "Видео", () => startCall(id, "video"))); b.append(row); }
   b.append(infRow("Имя пользователя", "@" + data.handle));
   if (data.bio) b.append(infRow("О себе", data.bio));
   if (data.music_url) b.append(musicCard(data));
@@ -1360,6 +1419,8 @@ function renderBots() {
 /token юзернейм — показать токен
 /revoke юзернейм — выпустить новый токен
 /rename юзернейм — сменить имя
+/setreply юзернейм — автоответ без кода (например «Привет!»)
+/clearreply юзернейм — выключить автоответ
 /deletebot юзернейм — удалить бота`);
   sec("Адрес и заголовки", `POST ${SUPABASE_URL}/rest/v1/rpc/МЕТОД
 apikey: ${SUPABASE_KEY}
@@ -1394,6 +1455,180 @@ while True:
   sec("Пример curl", `curl -X POST "${SUPABASE_URL}/rest/v1/rpc/bot_get_me" \\
   -H "apikey: ${SUPABASE_KEY}" -H "Content-Type: application/json" \\
   -d '{"p_token":"ВАШ_ТОКЕН"}'`);
+}
+
+/* ---------- звонки (WebRTC) ---------- */
+// Для надёжных звонков через мобильный интернет добавьте в этот список свой TURN-сервер
+const ICE = {iceServers: [
+  {urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]},
+  {urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turns:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject"}
+]};
+let call = null, inc = null, callsSub = false, ringT = null;
+
+function subscribeExtras() {
+  if (callsSub) return; callsSub = true;
+  sb.channel("calls")
+    .on("postgres_changes", {event: "INSERT", schema: "public", table: "calls"}, p => onCallInsert(p.new))
+    .on("postgres_changes", {event: "UPDATE", schema: "public", table: "calls"}, p => onCallUpdate(p.new))
+    .on("postgres_changes", {event: "INSERT", schema: "public", table: "call_signals"}, p => onSignal(p.new))
+    .subscribe();
+  sb.channel("notices")
+    .on("postgres_changes", {event: "INSERT", schema: "public", table: "notices"}, p => {
+      if (!p.new.to_user || p.new.to_user === me.id) { noticeQ.push(p.new); showNotice(); }
+    }).subscribe();
+}
+function ringStart() {
+  ringStop();
+  const f = () => {
+    try { navigator.vibrate && navigator.vibrate([500, 250, 500]); } catch (e) {}
+    try {
+      const ac = ringStart.ac || (ringStart.ac = new (window.AudioContext || window.webkitAudioContext)());
+      const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = 440; g.gain.value = 0.15;
+      o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.4);
+    } catch (e) {}
+  };
+  f(); ringT = setInterval(f, 2000);
+}
+function ringStop() { clearInterval(ringT); ringT = null; try { navigator.vibrate && navigator.vibrate(0); } catch (e) {} }
+
+function openCallUi(status) {
+  const p = who(call.peer);
+  $("clav").textContent = ""; $("clav").append(bigAv(p));
+  $("cln").textContent = p.username + badge(p); $("cls").textContent = status;
+  $("clcam").style.display = call.kind === "video" ? "" : "none";
+  $("clmic").textContent = "🎤"; $("clmic").classList.remove("off"); $("clcam").textContent = "📷"; $("clcam").classList.remove("off");
+  $("cllv").style.display = call.kind === "video" ? "block" : "none";
+  $("cl").style.display = "flex";
+}
+async function getMedia() {
+  call.local = await navigator.mediaDevices.getUserMedia({
+    audio: {echoCancellation: true, noiseSuppression: true},
+    video: call.kind === "video" ? {facingMode: "user"} : false});
+  if (call.kind === "video") { $("cllv").srcObject = call.local; $("cllv").play().catch(() => {}); }
+}
+async function sendSignal(kind, payload) {
+  const {error} = await sb.from("call_signals").insert({call_id: call.id, to_user: call.peer, kind, payload});
+  if (error) console.warn(error.message);
+}
+async function makePc() {
+  const pc = new RTCPeerConnection(ICE); call.pc = pc;
+  call.local.getTracks().forEach(t => pc.addTrack(t, call.local));
+  pc.ontrack = e => { $("clrv").srcObject = e.streams[0]; $("clrv").play().catch(() => {}); };
+  pc.onicecandidate = e => { if (e.candidate) sendSignal("ice", e.candidate.toJSON()); };
+  pc.onconnectionstatechange = () => {
+    if (!call || call.pc !== pc) return;
+    if (pc.connectionState === "connected") callConnected();
+    else if (pc.connectionState === "failed") { alert("Не удалось соединиться. Возможно, нужен TURN-сервер (см. раздел звонков в инструкции)."); hangup("failed", true); }
+  };
+  for (const s of call.queue.splice(0)) await onSignal(s);
+}
+function callConnected() {
+  if (!call || call.started) return;
+  call.started = Date.now(); clearTimeout(call.timeout);
+  $("cls").textContent = "0:00";
+  call.timer = setInterval(() => { if (call) $("cls").textContent = fmtT(Date.now() - call.started); }, 500);
+}
+async function flushIce() {
+  const c = call; if (!c || !c.pc || !c.pc.remoteDescription) return;
+  for (const x of c.ice.splice(0)) { try { await c.pc.addIceCandidate(x); } catch (e) {} }
+}
+async function onSignal(s) {
+  if (!call || s.call_id !== call.id || s.to_user !== me.id) return;
+  if (call.seen.has(s.id)) return;
+  if (!call.pc) { call.queue.push(s); return; }
+  call.seen.add(s.id);
+  const pc = call.pc;
+  try {
+    if (s.kind === "offer") {
+      await pc.setRemoteDescription(s.payload); await flushIce();
+      const a = await pc.createAnswer(); await pc.setLocalDescription(a);
+      await sendSignal("answer", pc.localDescription.toJSON());
+    } else if (s.kind === "answer") { await pc.setRemoteDescription(s.payload); await flushIce(); }
+    else if (s.kind === "ice") { if (pc.remoteDescription) await pc.addIceCandidate(s.payload); else call.ice.push(s.payload); }
+  } catch (e) { console.warn(e); }
+}
+async function startCall(peer, kind) {
+  if (call || inc) { alert("Вы уже в звонке"); return; }
+  if (who(peer).is_bot) { alert("Ботам звонить нельзя"); return; }
+  if (!navigator.mediaDevices || !window.RTCPeerConnection) { alert("Этот браузер не поддерживает звонки"); return; }
+  call = {id: null, kind, peer, role: "caller", queue: [], ice: [], seen: new Set(), ended: false, started: 0};
+  openCallUi("Вызов…");
+  try { await getMedia(); }
+  catch (e) { const c = call; call = null; cleanupCall(c); alert("Нет доступа к микрофону" + (kind === "video" ? " или камере" : "") + ". Разрешите его в настройках браузера."); return; }
+  const {data, error} = await sb.from("calls").insert({callee_id: peer, kind}).select().single();
+  if (error) { const c = call; call = null; cleanupCall(c); alert("Не удалось позвонить: " + error.message); return; }
+  call.id = data.id;
+  await makePc();
+  const offer = await call.pc.createOffer(); await call.pc.setLocalDescription(offer);
+  await sendSignal("offer", call.pc.localDescription.toJSON());
+  call.timeout = setTimeout(() => { if (call && !call.started) hangup("missed", true); }, 45000);
+}
+function cleanupCall(c) {
+  clearTimeout(c.timeout); clearInterval(c.timer);
+  try { c.local && c.local.getTracks().forEach(t => t.stop()); } catch (e) {}
+  try { c.pc && c.pc.close(); } catch (e) {}
+  $("cl").style.display = "none"; $("clrv").srcObject = null; $("cllv").srcObject = null;
+}
+async function hangup(reason, notify) {
+  const c = call; if (!c || c.ended) return;
+  c.ended = true; call = null; cleanupCall(c);
+  const dur = c.started ? Date.now() - c.started : 0;
+  if (c.id && notify) {
+    const status = reason === "declined" ? "declined" : reason === "missed" ? "missed" : "ended";
+    await sb.from("calls").update({status, ended_at: new Date().toISOString()}).eq("id", c.id);
+  }
+  if (c.id) { try { await sb.from("call_signals").delete().eq("call_id", c.id); } catch (e) {} }
+  if (c.role === "caller" && c.id && reason !== "failed") {
+    const txt = reason === "missed" ? "📞 Пропущенный звонок" : reason === "declined" ? "📞 Звонок отклонён" : reason === "busy" ? "📞 Абонент занят"
+      : dur ? (c.kind === "video" ? "📹 Видеозвонок · " : "📞 Звонок · ") + fmtT(dur) : "📞 Отменённый звонок";
+    try {
+      const d = await sb.rpc("get_dm", {other: c.peer});
+      if (d.data) await sb.from("messages").insert({chat_id: d.data, user_id: me.id, text: txt});
+    } catch (e) {}
+  }
+}
+function onCallInsert(c) { if (c.callee_id === me.id && c.status === "ringing") incoming(c); }
+async function incoming(c) {
+  if (call || inc) { await sb.from("calls").update({status: "busy", ended_at: new Date().toISOString()}).eq("id", c.id); return; }
+  await loadProfiles([c.caller_id]);
+  const p = who(c.caller_id);
+  inc = {c, t: setTimeout(closeIncoming, 45000)};
+  $("incav").textContent = ""; $("incav").append(bigAv(p));
+  $("incn").textContent = p.username + badge(p);
+  $("inck").textContent = c.kind === "video" ? "Входящий видеозвонок" : "Входящий звонок";
+  $("inc").style.display = "flex"; ringStart();
+}
+function closeIncoming() { if (inc) clearTimeout(inc.t); inc = null; ringStop(); $("inc").style.display = "none"; }
+async function checkIncoming() {
+  const since = new Date(Date.now() - 40000).toISOString();
+  const {data} = await sb.from("calls").select("*").eq("callee_id", me.id).eq("status", "ringing").gt("created_at", since).limit(1);
+  if (data && data.length) incoming(data[0]);
+}
+async function acceptCall() {
+  if (!inc) return;
+  const c = inc.c; closeIncoming();
+  call = {id: c.id, kind: c.kind, peer: c.caller_id, role: "callee", queue: [], ice: [], seen: new Set(), ended: false, started: 0};
+  openCallUi("Соединение…");
+  try { await getMedia(); }
+  catch (e) {
+    const cc = call; call = null; cleanupCall(cc);
+    await sb.from("calls").update({status: "declined", ended_at: new Date().toISOString()}).eq("id", c.id);
+    alert("Нет доступа к микрофону" + (c.kind === "video" ? " или камере" : "") + ". Разрешите его в настройках браузера."); return;
+  }
+  await sb.from("calls").update({status: "accepted", answered_at: new Date().toISOString()}).eq("id", c.id);
+  await makePc();
+  const {data} = await sb.from("call_signals").select("*").eq("call_id", c.id).eq("to_user", me.id).order("id", {ascending: true});
+  for (const s of data || []) await onSignal(s);
+  call && (call.timeout = setTimeout(() => { if (call && !call.started) hangup("failed", true); }, 30000));
+}
+async function declineCall() {
+  if (!inc) return;
+  const c = inc.c; closeIncoming();
+  await sb.from("calls").update({status: "declined", ended_at: new Date().toISOString()}).eq("id", c.id);
+}
+function onCallUpdate(c) {
+  if (inc && inc.c.id === c.id && c.status !== "ringing") closeIncoming();
+  if (call && call.id === c.id && ["declined", "missed", "ended", "busy"].includes(c.status)) hangup(c.status, false);
 }
 
 /* ---------- запуск ---------- */
@@ -1439,6 +1674,11 @@ $("pmfile").onchange = e => {
 $("pmdel").onclick = () => { pMusic = null; pMFile = null; $("pmtitle").value = ""; $("pmstat").textContent = "Музыка будет убрана после «Сохранить»"; };
 $("sbots").onclick = () => { show("bots"); renderBots(); }; $("botsback").onclick = () => show("set");
 $("ntok").onclick = ackNotice;
+$("callb").onclick = () => startCall(chats[cur].other, "audio");
+$("incyes").onclick = acceptCall; $("incno").onclick = declineCall;
+$("clend").onclick = () => hangup("ended", true);
+$("clmic").onclick = () => { if (!call || !call.local) return; call.muted = !call.muted; call.local.getAudioTracks().forEach(t => t.enabled = !call.muted); $("clmic").textContent = call.muted ? "🔇" : "🎤"; $("clmic").classList.toggle("off", !!call.muted); };
+$("clcam").onclick = () => { if (!call || !call.local) return; call.camOff = !call.camOff; call.local.getVideoTracks().forEach(t => t.enabled = !call.camOff); $("clcam").textContent = call.camOff ? "🚫" : "📷"; $("clcam").classList.toggle("off", !!call.camOff); };
 $("cgo").onclick = loadContacts; $("cq").onkeydown = e => { if (e.key === "Enter") loadContacts(); };
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -1462,7 +1702,8 @@ $("pnophoto").onclick = () => { pUrl = null; pBlob = null; drawPav(); };
 $("psave").onclick = saveProfile;
 $("logout").onclick = doLogout;
 $("dout").onclick = logoutOthers;
-grid($("grid1"), () => regAv, a => regAv = a);
+$("tgcancel").onclick = tgReset;
+$("authtitle").onclick = () => { if (++titleTaps >= 5) { mailMode = true; $("mailbox").style.display = ""; } };
 sb.auth.onAuthStateChange((ev, ses) => {
   try {
     if (ses) { localStorage.setItem("msg_bk", JSON.stringify({access_token: ses.access_token, refresh_token: ses.refresh_token})); accSave(ses); }
