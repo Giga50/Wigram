@@ -70,7 +70,7 @@ input[type=checkbox]{padding:0;width:20px;height:20px}
 .wpt{aspect-ratio:1;display:flex;align-items:flex-end;font-size:11px;padding:4px;color:#fff;cursor:pointer;border:2px solid var(--line)}
 .m time.mt{cursor:pointer;padding:2px 0}
 #nav{display:none;flex:none;background:var(--bar);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));justify-content:space-around}
-#nav button{background:none;border:0;color:var(--sub);font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 10px;border-radius:16px;min-width:68px}
+#nav button{background:none;border:0;color:var(--sub);font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 6px;border-radius:16px;min-width:56px}
 #nav button i{font-style:normal;font-size:22px;height:26px;display:flex;align-items:center}
 #nav button.on{color:var(--text);background:var(--out)}
 #navme{display:flex;height:26px}#navme .av{width:26px;height:26px;font-size:15px}
@@ -123,6 +123,16 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 #inc{display:none;position:fixed;inset:0;z-index:17;background:#111;color:#fff;flex-direction:column;align-items:center;justify-content:center;gap:10px}
 #inc .pname,#inc .pstat{color:#fff}
 #inl{display:none;max-height:40vh;overflow-y:auto;background:var(--bg);border-top:1px solid var(--line)}
+.wtc{border-bottom:1px solid var(--line);cursor:pointer}
+.wtth{position:relative;aspect-ratio:16/9;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-size:40px;overflow:hidden}
+.wtth img{width:100%;height:100%;object-fit:cover}
+.wtdur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.78);font-size:12px;padding:1px 5px;color:#fff}
+.wti{display:flex;gap:10px;padding:10px 12px;align-items:flex-start}
+.wtt{font-size:18px;font-weight:600;padding:10px 14px 2px;overflow-wrap:anywhere}
+.wtm{padding:0 14px;color:var(--sub);font-size:13px}
+.wtab{display:flex;gap:8px;padding:10px 12px;flex-wrap:wrap}
+.wtab button{border:0;border-radius:18px!important;padding:8px 14px;background:var(--bar);color:var(--text);font:inherit}
+.wtab button.on{background:var(--acc);color:#fff}
 </style>
 </head>
 <body>
@@ -297,6 +307,33 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
   </div>
 </div>
 
+<div class="screen" id="wt">
+  <header><span class="t">▶ WiTube</span><button id="wtnew">＋</button></header>
+  <div class="tabs"><button id="wta" class="on">Все</button><button id="wts">Подписки</button></div>
+  <div style="padding:10px"><input id="wtq" autocomplete="off" placeholder="Поиск видео" style="width:100%"></div>
+  <div class="scroll" id="wtlist"></div>
+</div>
+
+<div class="screen" id="wtv">
+  <header><button id="wtvback">←</button><span class="t">Видео</span></header>
+  <div class="scroll" id="wtvbox"></div>
+  <div class="bar"><input id="wtct" autocomplete="off" maxlength="500" placeholder="Комментарий"><button id="wtcs">➤</button></div>
+</div>
+
+<div class="screen" id="wtup">
+  <header><button id="wtupback">←</button><span class="t">Загрузить видео</span></header>
+  <div class="scroll"><div class="form">
+    <button class="btn" id="wtpick">Выбрать видео</button>
+    <input type="file" id="wtfile" accept="video/*" style="display:none">
+    <div id="wtprev"></div>
+    <input id="wttitle" autocomplete="off" maxlength="100" placeholder="Название">
+    <textarea id="wtdesc" maxlength="1000" rows="4" placeholder="Описание"></textarea>
+    <div class="err" id="wterr"></div>
+    <button class="btn" id="wtpub">Опубликовать</button>
+    <div class="lbl">Видео до 50 МБ. Загрузка может занять время, не закрывайте приложение.</div>
+  </div></div>
+</div>
+
 <div class="screen" id="bots">
   <header><button id="botsback">←</button><span class="t">Боты и API</span></header>
   <div class="scroll" id="botsbox"></div>
@@ -318,6 +355,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 
 <nav id="nav">
   <button data-s="list"><i>💬</i>Чаты</button>
+  <button data-s="wt"><i>▶️</i>WiTube</button>
   <button data-s="ct"><i>👥</i>Контакты</button>
   <button data-s="set"><i>⚙️</i>Настройки</button>
   <button data-s="mp"><span id="navme"></span>Профиль</button>
@@ -383,7 +421,7 @@ const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute
 function show(id) {
   prevScr = scr; scr = id;
   document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
-  $("nav").style.display = ["list", "ct", "set", "mp"].includes(id) ? "flex" : "none";
+  $("nav").style.display = ["list", "wt", "ct", "set", "mp"].includes(id) ? "flex" : "none";
   document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x.dataset.s === id));
 }
 const who = id => prof[id] || {username: "…", avatar: "👤"};
@@ -1118,6 +1156,7 @@ function openDevices() { show("dv"); loadDevices(); }
 function navGo(k) {
   if (k === "list") { renderList(); show("list"); loadStories(); }
   else if (k === "ct") { show("ct"); loadContacts(); }
+  else if (k === "wt") { show("wt"); loadFeed(); }
   else if (k === "set") show("set");
   else openMp();
 }
@@ -1705,6 +1744,166 @@ async function sendInline(it) {
   await send({url: it.url, type: it.type});
 }
 
+/* ---------- WiTube ---------- */
+let wtMode = "all", wtVid = null, wtFile = null, wtMeta = null, wtTimer = null;
+const wtViewed = new Set();
+const fmtDur = t => { const m = Math.floor(t / 60), s = t % 60; return m + ":" + String(s).padStart(2, "0"); };
+function ago(ts) {
+  const d = Math.floor((Date.now() - new Date(ts)) / 86400000);
+  return d <= 0 ? "сегодня" : d === 1 ? "вчера" : d < 30 ? d + " дн. назад" : new Date(ts).toLocaleDateString("ru-RU");
+}
+async function loadFeed() {
+  const box = $("wtlist"); box.textContent = ""; box.append(el("div", "lbl", "  Загрузка…"));
+  const q = $("wtq").value.trim().replace(/[,()%*]/g, "");
+  let qq = sb.from("wt_videos").select("*").order("created_at", {ascending: false}).limit(40);
+  if (q) qq = qq.ilike("title", "%" + q + "%");
+  if (wtMode === "subs") {
+    const s = await sb.from("wt_subs").select("channel_id").eq("user_id", me.id), ids = (s.data || []).map(x => x.channel_id);
+    if (!ids.length) { box.textContent = ""; box.append(el("div", "empty", "Вы пока ни на кого не подписаны")); return; }
+    qq = qq.in("user_id", ids);
+  }
+  const {data, error} = await qq;
+  box.textContent = "";
+  if (error) { box.append(el("div", "empty", "WiTube ещё не настроен: запустите witube.sql в Supabase")); return; }
+  if (!data.length) { box.append(el("div", "empty", "Видео пока нет. Загрузите первое кнопкой ＋")); return; }
+  await loadProfiles(data.map(v => v.user_id));
+  data.forEach(v => box.append(wtCard(v)));
+}
+function wtCard(v) {
+  const p = who(v.user_id), c = el("div", "wtc"), th = el("div", "wtth");
+  if (v.thumb_url) { const i = el("img"); i.src = v.thumb_url; th.append(i); } else th.textContent = "▶";
+  if (v.duration) th.append(el("span", "wtdur", fmtDur(v.duration)));
+  const rt = el("div", "rt"); rt.append(el("b", "", v.title), el("div", "", p.username + badge(p) + " · " + v.views + " просм. · " + ago(v.created_at)));
+  const info = el("div", "wti"); info.append(avEl(p, true), rt);
+  c.append(th, info); c.onclick = () => openVideo(v); return c;
+}
+async function openVideo(v) {
+  wtVid = v; show("wtv");
+  const b = $("wtvbox"); b.textContent = "";
+  const vid = el("video"); vid.src = v.video_url; vid.controls = true; vid.playsInline = true; vid.preload = "metadata";
+  if (v.thumb_url) vid.poster = v.thumb_url;
+  vid.style.cssText = "width:100%;max-height:60vh;background:#000;display:block";
+  b.append(vid, el("div", "wtt", v.title));
+  if (!wtViewed.has(v.id)) { wtViewed.add(v.id); v.views = (v.views || 0) + 1; sb.rpc("wt_view", {p_id: v.id}).then(() => {}); }
+  const mine = v.user_id === me.id, p = who(v.user_id);
+  b.append(el("div", "wtm", v.views + " просм. · " + ago(v.created_at)));
+  const st = (await sb.rpc("wt_stats", {p_id: v.id})).data || {};
+  const bar = el("div", "wtab"), lk = el("button", st.liked ? "on" : "", "👍 " + (st.likes || 0));
+  lk.onclick = async () => {
+    const r = st.liked ? await sb.from("wt_likes").delete().eq("video_id", v.id).eq("user_id", me.id) : await sb.from("wt_likes").insert({video_id: v.id, user_id: me.id});
+    if (r.error) { alert(r.error.message); return; }
+    st.liked = !st.liked; st.likes = (st.likes || 0) + (st.liked ? 1 : -1); lk.textContent = "👍 " + st.likes; lk.classList.toggle("on", st.liked);
+  };
+  bar.append(lk);
+  if (!mine) {
+    const sb_ = el("button", st.subscribed ? "on" : "", st.subscribed ? "🔔 Вы подписаны" : "🔔 Подписаться");
+    sb_.onclick = async () => {
+      const r = st.subscribed ? await sb.from("wt_subs").delete().eq("channel_id", v.user_id).eq("user_id", me.id) : await sb.from("wt_subs").insert({channel_id: v.user_id, user_id: me.id});
+      if (r.error) { alert(r.error.message); return; }
+      st.subscribed = !st.subscribed; sb_.textContent = st.subscribed ? "🔔 Вы подписаны" : "🔔 Подписаться"; sb_.classList.toggle("on", st.subscribed);
+    };
+    bar.append(sb_);
+  }
+  if (mine || me.is_admin) {
+    const del = el("button", "", "🗑 Удалить");
+    del.onclick = async () => {
+      if (!confirm("Удалить это видео?")) return;
+      const r = await sb.from("wt_videos").delete().eq("id", v.id);
+      if (r.error) { alert(r.error.message); return; }
+      show("wt"); loadFeed();
+    };
+    bar.append(del);
+  }
+  b.append(bar);
+  const ch = el("div", "wti"), rt = el("div", "rt"); rt.append(el("b", "", p.username + badge(p)), el("div", "", "Автор · подписчиков: " + (st.subs || 0)));
+  ch.append(avEl(p, true), rt); ch.style.cursor = "pointer"; ch.onclick = () => openUser(v.user_id); b.append(ch);
+  if (v.description) b.append(el("div", "inf", v.description));
+  b.append(el("div", "lbl", "  Комментарии: " + (st.comments || 0)));
+  const cbox = el("div"); cbox.id = "wtcbox"; b.append(cbox);
+  loadWtComments();
+}
+async function loadWtComments() {
+  const v = wtVid, box = $("wtcbox"); if (!box) return;
+  const {data} = await sb.from("wt_comments").select("*").eq("video_id", v.id).order("id", {ascending: true}).limit(200);
+  await loadProfiles((data || []).map(x => x.user_id));
+  box.textContent = "";
+  (data || []).forEach(m => {
+    const p = who(m.user_id), rt = el("div", "rt"), b = el("b");
+    b.append(el("span", "", p.username + badge(p)), el("i", "", ago(m.created_at))); rt.append(b, el("div", "", m.text));
+    rt.lastChild.style.cssText = "white-space:pre-wrap;color:var(--text)";
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p, true), rt);
+    if (m.user_id === me.id || me.is_admin || v.user_id === me.id) {
+      const x = el("button", "btn s g", "✕");
+      x.onclick = async () => { const d = await sb.from("wt_comments").delete().eq("id", m.id); if (d.error) alert(d.error.message); else loadWtComments(); };
+      r.append(x);
+    }
+    box.append(r);
+  });
+}
+async function sendWtComment() {
+  const v = $("wtct").value.trim(); if (!v || !wtVid) return;
+  $("wtct").value = "";
+  const {error} = await sb.from("wt_comments").insert({video_id: wtVid.id, user_id: me.id, text: v});
+  if (error) { $("wtct").value = v; alert(error.code === "42501" ? "Не отправлено: вы замучены или заблокированы." : error.message); return; }
+  loadWtComments();
+}
+function videoMeta(file) {
+  return new Promise(res => {
+    const v = document.createElement("video"), url = URL.createObjectURL(file);
+    let done = false;
+    const fin = r => { if (!done) { done = true; URL.revokeObjectURL(url); res(r); } };
+    v.preload = "metadata"; v.muted = true; v.playsInline = true; v.src = url;
+    setTimeout(() => fin({blob: null, duration: Math.round(v.duration) || 0}), 8000);
+    v.onerror = () => fin({blob: null, duration: 0});
+    v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 2) / 3); };
+    v.onseeked = () => {
+      const w = 480, h = Math.round(w * (v.videoHeight || 270) / (v.videoWidth || 480));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(v, 0, 0, w, h);
+      c.toBlob(b => fin({blob: b, duration: Math.round(v.duration) || 0}), "image/jpeg", 0.8);
+    };
+  });
+}
+async function wtPicked(e) {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  $("wterr").textContent = "";
+  if (!f.type.startsWith("video/")) { $("wterr").textContent = "Выберите видеофайл"; return; }
+  if (f.size > 50 * 1024 * 1024) { $("wterr").textContent = "Файл больше 50 МБ"; return; }
+  wtFile = f; wtMeta = null;
+  $("wtprev").textContent = ""; $("wtprev").append(el("div", "lbl", "  Обрабатываем видео…"));
+  if (!$("wttitle").value) $("wttitle").value = f.name.replace(/\.[^.]+$/, "").slice(0, 100);
+  wtMeta = await videoMeta(f);
+  $("wtprev").textContent = "";
+  const th = el("div", "wtth");
+  if (wtMeta.blob) { const i = el("img"); i.src = URL.createObjectURL(wtMeta.blob); th.append(i); } else th.textContent = "▶";
+  if (wtMeta.duration) th.append(el("span", "wtdur", fmtDur(wtMeta.duration)));
+  $("wtprev").append(th, el("div", "lbl", "  " + f.name + " · " + (f.size / 1048576).toFixed(1) + " МБ"));
+}
+async function wtPublish() {
+  $("wterr").textContent = "";
+  const title = $("wttitle").value.trim();
+  if (!wtFile) { $("wterr").textContent = "Сначала выберите видео"; return; }
+  if (!title) { $("wterr").textContent = "Введите название"; return; }
+  const btn = $("wtpub"); btn.disabled = true; btn.textContent = "Загрузка… не закрывайте";
+  try {
+    const id = crypto.randomUUID(), ext = (wtFile.name.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp4";
+    const vpath = me.id + "/wt-" + id + "." + ext;
+    const up = await sb.storage.from("media").upload(vpath, wtFile, {contentType: wtFile.type || "video/mp4"});
+    if (up.error) throw up.error;
+    let thumb = null;
+    if (wtMeta && wtMeta.blob) {
+      const tpath = me.id + "/wt-" + id + ".jpg";
+      const tu = await sb.storage.from("media").upload(tpath, wtMeta.blob, {contentType: "image/jpeg"});
+      if (!tu.error) thumb = sb.storage.from("media").getPublicUrl(tpath).data.publicUrl;
+    }
+    const {error} = await sb.from("wt_videos").insert({user_id: me.id, title, description: $("wtdesc").value.trim(),
+      video_url: sb.storage.from("media").getPublicUrl(vpath).data.publicUrl, thumb_url: thumb, duration: wtMeta ? wtMeta.duration || null : null});
+    if (error) throw error;
+    wtFile = null; wtMeta = null; show("wt"); loadFeed();
+  } catch (x) { $("wterr").textContent = "Не удалось опубликовать: " + (x.message || x); }
+  btn.disabled = false; btn.textContent = "Опубликовать";
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => { if (e.key === "Enter") submit(); };
@@ -1753,6 +1952,13 @@ $("incyes").onclick = acceptCall; $("incno").onclick = declineCall;
 $("clend").onclick = () => hangup("ended", true);
 $("clmic").onclick = () => { if (!call || !call.local) return; call.muted = !call.muted; call.local.getAudioTracks().forEach(t => t.enabled = !call.muted); $("clmic").textContent = call.muted ? "🔇" : "🎤"; $("clmic").classList.toggle("off", !!call.muted); };
 $("clcam").onclick = () => { if (!call || !call.local) return; call.camOff = !call.camOff; call.local.getVideoTracks().forEach(t => t.enabled = !call.camOff); $("clcam").textContent = call.camOff ? "🚫" : "📷"; $("clcam").classList.toggle("off", !!call.camOff); };
+$("wtnew").onclick = () => { wtFile = null; wtMeta = null; $("wttitle").value = ""; $("wtdesc").value = ""; $("wtprev").textContent = ""; $("wterr").textContent = ""; show("wtup"); };
+$("wtupback").onclick = () => show("wt"); $("wtpick").onclick = () => $("wtfile").click(); $("wtfile").onchange = wtPicked; $("wtpub").onclick = wtPublish;
+$("wtvback").onclick = () => { const v = document.querySelector("#wtvbox video"); if (v) v.pause(); show("wt"); };
+$("wta").onclick = () => { wtMode = "all"; $("wta").classList.add("on"); $("wts").classList.remove("on"); loadFeed(); };
+$("wts").onclick = () => { wtMode = "subs"; $("wts").classList.add("on"); $("wta").classList.remove("on"); loadFeed(); };
+$("wtq").oninput = () => { clearTimeout(wtTimer); wtTimer = setTimeout(loadFeed, 400); };
+$("wtcs").onclick = sendWtComment; $("wtct").onkeydown = e => { if (e.key === "Enter") sendWtComment(); };
 $("cgo").onclick = loadContacts; $("cq").onkeydown = e => { if (e.key === "Enter") loadContacts(); };
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
