@@ -107,6 +107,11 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 #rcv video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
 #rcm{font-size:70px}#rct{font-size:26px}
 .rcb{display:flex;gap:12px}
+.m span{white-space:pre-wrap}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10px;font-size:12px;margin:4px 16px 10px;font-family:Consolas,monospace}
+#nt{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:14;align-items:center;justify-content:center}
+#ntb{background:var(--bg);border:2px solid var(--acc);padding:18px;width:min(320px,90%);display:flex;flex-direction:column;gap:12px}
+#ntt{font-size:17px;white-space:pre-wrap;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -263,6 +268,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 <div class="screen" id="set">
   <header><span class="t">Настройки</span></header>
   <div class="scroll">
+    <div class="row" id="sbots"><div class="av s">🤖</div><div class="rt"><b>Боты и API</b></div></div>
     <div class="row" id="sacc"><div class="av s">👥</div><div class="rt"><b>Аккаунты (до 4)</b></div></div>
     <div class="row" id="sedit"><div class="av s">✏️</div><div class="rt"><b>Редактировать профиль</b></div></div>
     <div class="row" id="sshop"><div class="av s">⭐</div><div class="rt"><b>Звёзды и Премиум</b></div></div>
@@ -270,6 +276,11 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
     <div class="row" id="sadm" style="display:none"><div class="av s">🛡</div><div class="rt"><b>Админ-панель</b></div></div>
     <div class="row" id="sout"><div class="av s">🚪</div><div class="rt"><b>Выйти из аккаунта</b></div></div>
   </div>
+</div>
+
+<div class="screen" id="bots">
+  <header><button id="botsback">←</button><span class="t">Боты и API</span></header>
+  <div class="scroll" id="botsbox"></div>
 </div>
 
 <div class="screen" id="acc">
@@ -292,6 +303,12 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   <button data-s="set"><i>⚙️</i>Настройки</button>
   <button data-s="mp"><span id="navme"></span>Профиль</button>
 </nav>
+
+<div id="nt"><div id="ntb">
+  <div style="font-size:18px;font-weight:600">📩 Сообщение от администрации</div>
+  <div id="ntt"></div>
+  <button class="btn" id="ntok">Понятно</button>
+</div></div>
 
 <div id="rc">
   <div id="rcv"><video id="rcvid" muted playsinline></video></div>
@@ -323,7 +340,7 @@ let me = null, cur = null, mode = "login", kind = "group", subscribed = false, f
 let prof = {}, chats = {}, mem = new Set(), all = [], stories = {};
 let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null, ciUrl = null, ciBlob = null;
 let scr = "auth", prevScr = "auth", sv = {list: [], i: 0, t: null};
-let myChannels = [], asMap = {}, asCm = null, rec = null;
+let myChannels = [], asMap = {}, asCm = null, rec = null, noticeQ = [], noticeOpen = false;
 let cm = null, ccount = {}, cleared = {}, adding = false, pStyle = "classic", pMusic = null, pMFile = null;
 
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
@@ -337,7 +354,7 @@ const who = id => prof[id] || {username: "…", avatar: "👤"};
 const PREM = "👑 💎 🦄 🐉 🔮 🌟 🎭 🪐 🦋 🦅 🐺 🌙".split(" ");
 function isPrem(p) { return !!(p && p.premium_until && new Date(p.premium_until) > new Date()); }
 const avList = () => me && isPrem(me) ? AV.concat(PREM) : AV;
-const badge = p => (p && p.verified ? " ✔" : "") + (isPrem(p) ? " 💎" : "");
+const badge = p => (p && p.verified ? " ✔" : "") + (isPrem(p) ? " 💎" : "") + (p && p.is_bot ? " 🤖" : "");
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
 const clean = s => s.trim().toLowerCase().replace(/^@/, "");
 
@@ -485,7 +502,7 @@ async function enter(user) {
   accInfo();
   $("sadm").style.display = me.is_admin ? "" : "none"; renderNav();
   show("list"); ping();
-  await loadChats(); await loadMyChannels(); loadStories();
+  await loadChats(); await loadMyChannels(); loadStories(); loadNotices();
   if (!subscribed) {
     subscribed = true;
     setInterval(ping, 60000);
@@ -503,6 +520,8 @@ async function enter(user) {
       if (i >= 0) { all[i] = p.new; renderList(); if (scr === "chat") renderChat(); }
     }).on("postgres_changes", {event: "DELETE", schema: "public", table: "messages"}, p => {
       all = all.filter(x => x.id !== p.old.id); renderList(); if (scr === "chat") renderChat();
+    }).on("postgres_changes", {event: "INSERT", schema: "public", table: "notices"}, p => {
+      if (!p.new.to_user || p.new.to_user === me.id) { noticeQ.push(p.new); showNotice(); }
     }).subscribe();
   }
 }
@@ -526,7 +545,7 @@ function renderList() {
 function renderChat() {
   const c = chats[cur], box = $("msgs"); box.textContent = ""; applyWp();
   $("title").textContent = cTitle(c); syncAs(); syncSend(); $("giftb").style.display = c.kind === "dm" ? "" : "none";
-  $("cdesc").textContent = c.kind === "dm" ? seen(who(c.other).last_seen)
+  $("cdesc").textContent = c.kind === "dm" ? (who(c.other).is_bot ? "бот" : seen(who(c.other).last_seen))
     : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
   if (c.kind === "saved") $("cdesc").textContent = "Заметки и файлы только для вас";
   const can = c.kind !== "channel" || c.owner_id === me.id;
@@ -559,7 +578,7 @@ function open(id) {
   cur = id; show("chat"); renderChat();
   const c = chats[id]; if (c.kind === "channel" && c.linked_group_id) loadCounts(c);
   if (c.kind === "dm") sb.from("profiles").select("*").eq("id", c.other).maybeSingle().then(({data}) => {
-    if (data) { prof[data.id] = data; if (cur === id && scr === "chat") $("cdesc").textContent = seen(data.last_seen); }
+    if (data) { prof[data.id] = data; if (cur === id && scr === "chat") $("cdesc").textContent = data.is_bot ? "бот" : seen(data.last_seen); }
   });
 }
 async function send(media) {
@@ -642,7 +661,7 @@ async function search() {
   if (people.length) box.append(el("div", "lbl", "  Люди"));
   people.forEach(p => {
     prof[p.id] = p;
-    const rt = el("div", "rt"); rt.append(el("b", "", p.username + badge(p)), el("div", "", "@" + p.handle + " · " + seen(p.last_seen)));
+    const rt = el("div", "rt"); rt.append(el("b", "", p.username + badge(p)), el("div", "", "@" + p.handle + (p.is_bot ? " · бот" : " · " + seen(p.last_seen))));
     const r = el("div", "row"); r.append(avEl(p), rt); r.onclick = () => openUser(p.id); box.appendChild(r);
   });
   if (list.length) box.append(el("div", "lbl", "  Группы и каналы"));
@@ -663,7 +682,7 @@ async function openUser(id) {
   if (!data) return;
   prof[id] = data;
   const b = $("ubox"); b.textContent = ""; b.className = "pst pst-" + (data.pstyle || "classic");
-  b.append(bigAv(data), nameLine(data), statusLine(seen(data.last_seen)));
+  b.append(bigAv(data), nameLine(data), statusLine(data.is_bot ? "бот" : seen(data.last_seen)));
   if (id !== me.id) { const row = el("div", "acts"); row.append(actBtn("💬", "Чат", () => writeTo(id)), actBtn("🎁", "Подарок", () => openGifts(id))); b.append(row); }
   b.append(infRow("Имя пользователя", "@" + data.handle));
   if (data.bio) b.append(infRow("О себе", data.bio));
@@ -795,6 +814,14 @@ async function openAdmin() {
     sb.from("gifts").select("*").order("price")]);
   const users = u.data || [], cl = c.data || [];
   const call = async (fn, args) => { const {error} = await sb.rpc(fn, args); if (error) alert(error.message); else openAdmin(); };
+  const bc = el("button", "btn", "📣 Всплывающее сообщение всем"); bc.style.margin = "10px 16px";
+  bc.onclick = async () => {
+    const t = prompt("Текст для ВСЕХ пользователей"); if (!t || !t.trim()) return;
+    if (!confirm("Отправить всем пользователям?")) return;
+    const {error} = await sb.from("notices").insert({to_user: null, text: t.trim().slice(0, 500)});
+    alert(error ? error.message : "Отправлено всем");
+  };
+  box.append(bc);
   box.append(el("div", "lbl", "  Пользователи: " + users.length));
   users.forEach(p => {
     prof[p.id] = p; if (p.id === me.id) { me.verified = p.verified; me.is_admin = p.is_admin; }
@@ -1049,6 +1076,12 @@ function adminMenu(p, call) {
   add(p.is_admin ? "Убрать админа" : "Сделать админом", () => call("admin_set_admin", {uid: p.id, val: !p.is_admin}));
   add("Выдать ⭐ (сейчас " + (p.stars || 0) + ")", () => { const n = parseInt(prompt("Сколько звёзд выдать? (можно отрицательное)", "100"), 10); if (n) call("admin_give_stars", {uid: p.id, amount: n}); });
   add("💎 Премиум на N дней…", () => { const d = parseInt(prompt("На сколько дней дать Премиум? (0 — снять)", "30"), 10); if (!isNaN(d)) call("admin_give_premium", {uid: p.id, days: d}); });
+  add("📩 Всплывающее сообщение…", async () => {
+    const t = prompt("Текст, который увидит " + p.username, "Поставь аву, а то бан");
+    if (!t || !t.trim()) return;
+    const {error} = await sb.from("notices").insert({to_user: p.id, text: t.trim().slice(0, 500)});
+    alert(error ? error.message : "Отправлено. Человек увидит окно при следующем открытии приложения или сразу, если он онлайн.");
+  });
   add(p.can_link ? "💬 Забрать право на комментарии" : "💬 Дать право на комментарии", () => call("admin_set_can_link", {uid: p.id, val: !p.can_link}));
   add(isMuted(p) ? "🔊 Снять мут" : "🔇 Замутить…", () => {
     if (isMuted(p)) { call("admin_set_mute", {uid: p.id, hours: 0}); return; }
@@ -1292,6 +1325,77 @@ async function finishRec() {
   } catch (x) { alert("Не удалось отправить: " + x.message); }
 }
 
+/* ---------- всплывающие сообщения от админа ---------- */
+async function loadNotices() {
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  const [n, r] = await Promise.all([
+    sb.from("notices").select("*").gt("created_at", since).order("created_at", {ascending: true}),
+    sb.from("notice_reads").select("notice_id").eq("user_id", me.id)]);
+  const read = new Set((r.data || []).map(x => x.notice_id));
+  noticeQ = (n.data || []).filter(x => !read.has(x.id));
+  showNotice();
+}
+function showNotice() {
+  if (noticeOpen || !noticeQ.length) return;
+  noticeOpen = true; $("ntt").textContent = noticeQ[0].text; $("nt").style.display = "flex";
+}
+async function ackNotice() {
+  const n = noticeQ.shift(); $("nt").style.display = "none"; noticeOpen = false;
+  if (n) await sb.from("notice_reads").insert({notice_id: n.id, user_id: me.id});
+  showNotice();
+}
+
+/* ---------- боты и API ---------- */
+const MASTER_ID = "00000000-0000-0000-0000-00000000b077";
+function renderBots() {
+  const b = $("botsbox"); b.textContent = "";
+  const o = el("button", "btn", "💬 Открыть BotMaster"); o.style.margin = "12px 16px 4px"; o.onclick = () => writeTo(MASTER_ID); b.append(o);
+  const sec = (title, text) => { b.append(el("div", "lbl", "  " + title)); b.append(el("pre", "", text)); };
+  sec("Как создать бота", `1. Нажмите «Открыть BotMaster».
+2. Отправьте /newbot, затем имя бота и юзернейм (он должен заканчиваться на bot).
+3. BotMaster пришлёт токен. Держите его в секрете.
+
+Управление ботами тоже через BotMaster:
+/mybots — список
+/token юзернейм — показать токен
+/revoke юзернейм — выпустить новый токен
+/rename юзернейм — сменить имя
+/deletebot юзернейм — удалить бота`);
+  sec("Адрес и заголовки", `POST ${SUPABASE_URL}/rest/v1/rpc/МЕТОД
+apikey: ${SUPABASE_KEY}
+Authorization: Bearer ${SUPABASE_KEY}
+Content-Type: application/json`);
+  sec("Методы (тело запроса — JSON)", `bot_get_me {p_token}
+bot_get_updates {p_token, p_offset, p_limit}
+bot_send_message {p_token, p_chat_id, p_text, p_media_url, p_media_type}
+bot_edit_message {p_token, p_message_id, p_text}
+bot_delete_message {p_token, p_message_id}
+
+Ответ: {"ok": true, "result": ...} или {"ok": false, "error": "..."}
+p_media_type: image, video, audio или round.
+Пользователь пишет боту в личном чате, бот получает сообщение через bot_get_updates. Обработав обновления, передавайте p_offset = update_id + 1: старые удаляются. Сообщение боту: до 500 символов.`);
+  sec("Пример на Python: эхо-бот", `import requests, time
+URL = "${SUPABASE_URL}/rest/v1/rpc/"
+KEY = "${SUPABASE_KEY}"
+TOKEN = "ВАШ_ТОКЕН"
+H = {"apikey": KEY, "Authorization": "Bearer " + KEY, "Content-Type": "application/json"}
+
+def call(method, **kw):
+    r = requests.post(URL + method, headers=H, json={"p_token": TOKEN, **kw})
+    return r.json()
+
+offset = 0
+while True:
+    for u in call("bot_get_updates", p_offset=offset)["result"]:
+        offset = u["update_id"] + 1
+        m = u["message"]
+        call("bot_send_message", p_chat_id=m["chat_id"], p_text="Вы написали: " + (m["text"] or ""))
+    time.sleep(2)`);
+  sec("Пример curl", `curl -X POST "${SUPABASE_URL}/rest/v1/rpc/bot_get_me" \\
+  -H "apikey: ${SUPABASE_KEY}" -H "Content-Type: application/json" \\
+  -d '{"p_token":"ВАШ_ТОКЕН"}'`);
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => { if (e.key === "Enter") submit(); };
@@ -1333,6 +1437,8 @@ $("pmfile").onchange = e => {
   if (!$("pmtitle").value) $("pmtitle").value = f.name.replace(/\.[^.]+$/, "").slice(0, 60);
 };
 $("pmdel").onclick = () => { pMusic = null; pMFile = null; $("pmtitle").value = ""; $("pmstat").textContent = "Музыка будет убрана после «Сохранить»"; };
+$("sbots").onclick = () => { show("bots"); renderBots(); }; $("botsback").onclick = () => show("set");
+$("ntok").onclick = ackNotice;
 $("cgo").onclick = loadContacts; $("cq").onkeydown = e => { if (e.key === "Enter") loadContacts(); };
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
