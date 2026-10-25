@@ -41,7 +41,7 @@ header button{background:none;border:0;color:#fff;font-size:22px;padding:0 4px}
 .bar.ro{justify-content:center;color:var(--sub);padding:14px}
 input,textarea{border:2px solid var(--line);background:var(--bg);color:var(--text);padding:10px;font:inherit;min-width:0}
 input:focus,textarea:focus{outline:0;border-color:var(--acc)}input:disabled,textarea:disabled{opacity:.7}
-.bar input{flex:1}.bar button{background:var(--acc);color:#fff;border:0;width:48px;font-size:20px}
+.bar input{flex:1}.bar button{background:var(--acc);color:#fff;border:0;width:42px;font-size:19px}
 .bar button.g{background:var(--bg);color:var(--text);border:2px solid var(--line)}
 .form{margin:auto;width:min(340px,92%);display:flex;flex-direction:column;gap:10px;padding:16px 0}
 .form h2{font-weight:300;font-size:28px;margin:0}
@@ -101,6 +101,12 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 .pst-min .pav{border-radius:24px!important}
 .pst-min .big{width:110px;height:110px;font-size:56px;margin:20px 16px 8px}
 .pst-min .pname,.pst-min .pstat{text-align:left;padding:0 16px}
+.m video.round{width:200px;height:200px;border-radius:50%!important;object-fit:cover;max-height:none;margin:4px auto}
+#rc{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:12;color:#fff;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+#rcv{display:none;width:min(70vw,300px);height:min(70vw,300px);border-radius:50%!important;overflow:hidden;background:#111;border:3px solid #d13438}
+#rcv video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#rcm{font-size:70px}#rct{font-size:26px}
+.rcb{display:flex;gap:12px}
 </style>
 </head>
 <body>
@@ -134,7 +140,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
-  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><input id="text" autocomplete="off" maxlength="500" placeholder="Сообщение"><button id="send">➤</button></div>
+  <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><button class="g" id="asb" style="display:none">👤</button><button class="g" id="rb">⭕</button><input id="text" autocomplete="off" maxlength="500" placeholder="Сообщение"><button id="send">🎤</button></div>
   <div class="bar ro" id="robar" style="display:none">В этом канале пишет только владелец</div>
   <input type="file" id="mfile" accept="image/*,video/*" style="display:none">
 </div>
@@ -217,7 +223,7 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
 <div class="screen" id="cmt">
   <header><button id="cmback">←</button><span class="t">Комментарии</span></header>
   <div class="scroll" id="cmbox"></div>
-  <div class="bar"><input id="cmtext" autocomplete="off" maxlength="500" placeholder="Комментарий"><button id="cmsend">➤</button></div>
+  <div class="bar"><button class="g" id="cmasb" style="display:none">👤</button><input id="cmtext" autocomplete="off" maxlength="500" placeholder="Комментарий"><button id="cmsend">➤</button></div>
 </div>
 
 <div class="screen" id="shopscr">
@@ -287,6 +293,13 @@ select{border:2px solid var(--line);background:var(--bg);color:var(--text);paddi
   <button data-s="mp"><span id="navme"></span>Профиль</button>
 </nav>
 
+<div id="rc">
+  <div id="rcv"><video id="rcvid" muted playsinline></video></div>
+  <div id="rcm">🎤</div>
+  <div id="rct">0:00</div>
+  <div class="rcb"><button class="btn g" id="rccancel">✕ Отмена</button><button class="btn" id="rcsend">Отправить</button></div>
+</div>
+
 <div id="ms"><div id="msb"></div></div>
 
 <div id="sv">
@@ -310,6 +323,7 @@ let me = null, cur = null, mode = "login", kind = "group", subscribed = false, f
 let prof = {}, chats = {}, mem = new Set(), all = [], stories = {};
 let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null, ciUrl = null, ciBlob = null;
 let scr = "auth", prevScr = "auth", sv = {list: [], i: 0, t: null};
+let myChannels = [], asMap = {}, asCm = null, rec = null;
 let cm = null, ccount = {}, cleared = {}, adding = false, pStyle = "classic", pMusic = null, pMFile = null;
 
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
@@ -347,7 +361,7 @@ function cAv(c, small) {
   return d;
 }
 const cTitle = c => c.kind === "dm" ? who(c.other).username + badge(who(c.other)) : c.title;
-const prev = m => m.text || (m.media_type === "video" ? "🎬 Видео" : "📷 Фото");
+const prev = m => m.text || ({video: "🎬 Видео", audio: "🎤 Голосовое", round: "⭕ Кружок"}[m.media_type] || "📷 Фото");
 function grid(box, get, set) {
   box.textContent = "";
   avList().forEach(a => { const d = el("div", a === get() ? "sel" : "", a); d.onclick = () => { set(a); grid(box, get, set); }; box.appendChild(d); });
@@ -445,6 +459,7 @@ async function loadChats() {
     const r = await sb.from("messages").select("*").in("chat_id", ids).order("created_at", {ascending: false}).limit(500);
     all = (r.data || []).reverse().filter(x => !cleared[x.chat_id] || x.created_at > cleared[x.chat_id]);
     await loadProfiles(all.map(x => x.user_id).concat(list.map(x => x.owner_id), others));
+    await loadAs(all);
   }
   renderList();
 }
@@ -470,18 +485,18 @@ async function enter(user) {
   accInfo();
   $("sadm").style.display = me.is_admin ? "" : "none"; renderNav();
   show("list"); ping();
-  await loadChats(); loadStories();
+  await loadChats(); await loadMyChannels(); loadStories();
   if (!subscribed) {
     subscribed = true;
     setInterval(ping, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) ping(); });
     sb.channel("all").on("postgres_changes", {event: "INSERT", schema: "public", table: "messages"}, async p => {
       if (p.new.reply_to && cm && p.new.reply_to === cm.post.id && !cm.list.some(x => x.id === p.new.id)) {
-        await loadProfiles([p.new.user_id]); cm.list.push(p.new); ccount[cm.post.id] = cm.list.length; if (scr === "cmt") renderComments();
+        await loadProfiles([p.new.user_id]); await loadAs([p.new]); cm.list.push(p.new); ccount[cm.post.id] = cm.list.length; if (scr === "cmt") renderComments();
       }
       if (!mem.has(p.new.chat_id)) return;
       await loadProfiles([p.new.user_id]);
-      all.push(p.new); renderList();
+      await loadAs([p.new]); all.push(p.new); renderList();
       if (cur === p.new.chat_id && scr === "chat") renderChat();
     }).on("postgres_changes", {event: "UPDATE", schema: "public", table: "messages"}, p => {
       const i = all.findIndex(x => x.id === p.new.id);
@@ -504,13 +519,13 @@ function renderList() {
   items.forEach(c => {
     const m = last[c.id], rt = el("div", "rt"), b = el("b");
     b.append(el("span", "", cTitle(c)), el("i", "", m ? hm(m.created_at) : ""));
-    rt.append(b, el("div", "", m ? who(m.user_id).username + badge(who(m.user_id)) + ": " + prev(m) : (c.kind === "channel" ? "Канал" : c.kind === "dm" ? "Личный чат" : c.kind === "saved" ? "Заметки для себя" : "Группа")));
+    rt.append(b, el("div", "", m ? authorOf(m).name + ": " + prev(m) : (c.kind === "channel" ? "Канал" : c.kind === "dm" ? "Личный чат" : c.kind === "saved" ? "Заметки для себя" : "Группа")));
     const r = el("div", "row"); r.append(cAv(c), rt); r.onclick = () => c.id === "__saved" ? openSaved() : open(c.id); box.appendChild(r);
   });
 }
 function renderChat() {
   const c = chats[cur], box = $("msgs"); box.textContent = ""; applyWp();
-  $("title").textContent = cTitle(c); $("giftb").style.display = c.kind === "dm" ? "" : "none";
+  $("title").textContent = cTitle(c); syncAs(); syncSend(); $("giftb").style.display = c.kind === "dm" ? "" : "none";
   $("cdesc").textContent = c.kind === "dm" ? seen(who(c.other).last_seen)
     : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
   if (c.kind === "saved") $("cdesc").textContent = "Заметки и файлы только для вас";
@@ -519,12 +534,14 @@ function renderChat() {
   const list = all.filter(m => m.chat_id === cur);
   if (!list.length) { box.appendChild(el("div", "empty", "Здесь пока пусто.")); return; }
   list.forEach(m => {
-    const mine = m.user_id === me.id, p = who(m.user_id);
+    const mine = m.user_id === me.id, au = authorOf(m);
     const w = el("div", "mw" + (mine ? " me" : "")), d = el("div", "m");
-    d.append(el("small", "", p.username + badge(p)));
+    d.append(el("small", "", au.name));
     if (m.reply_to) d.append(el("div", "lbl", "↩ Комментарий к посту"));
     if (m.media_url) {
       if (m.media_type === "video") { const v = el("video"); v.src = m.media_url; v.controls = true; v.preload = "metadata"; v.playsInline = true; d.append(v); }
+      else if (m.media_type === "audio") { const a = el("audio"); a.src = m.media_url; a.controls = true; a.preload = "metadata"; a.style.cssText = "width:220px;max-width:100%;margin:2px 0 4px"; d.append(a); }
+      else if (m.media_type === "round") { const v = el("video"); v.src = m.media_url; v.className = "round"; v.playsInline = true; v.preload = "metadata"; v.loop = true; v.onclick = () => { if (v.paused) v.play(); else v.pause(); }; d.append(v); }
       else { const i = el("img"); i.src = m.media_url; i.onclick = () => window.open(m.media_url, "_blank"); d.append(i); }
     }
     if (m.text) d.append(el("span", "", m.text));
@@ -533,7 +550,7 @@ function renderChat() {
     if (canManage) tm.onclick = () => msgMenu(m);
     d.append(tm);
     if (c.kind === "channel" && c.linked_group_id) { const cb = el("button", "cmb", "💬 Комментарии" + (ccount[m.id] ? " · " + ccount[m.id] : "")); cb.onclick = () => openComments(m); d.append(cb); }
-    if (!mine) { const a = avEl(p, true); a.style.cursor = "pointer"; a.onclick = () => openUser(m.user_id); w.append(a); }
+    if (!mine) { const a = au.av(); if (au.click) { a.style.cursor = "pointer"; a.onclick = au.click; } w.append(a); }
     w.append(d); box.appendChild(w);
   });
   box.scrollTop = box.scrollHeight;
@@ -547,8 +564,10 @@ function open(id) {
 }
 async function send(media) {
   const v = $("text").value.trim(); if ((!v && !media) || !cur) return;
-  $("text").value = "";
+  $("text").value = ""; syncSend();
   const row = {chat_id: cur, user_id: me.id, text: v};
+  const _c = chats[cur], asid = _c && (_c.kind === "channel" || _c.kind === "group") ? curAs(cur) : null;
+  if (asid) row.as_chat_id = asid;
   if (media) { row.media_url = media.url; row.media_type = media.type; }
   const {error} = await sb.from("messages").insert(row);
   if (error) { $("text").value = v; alert(error.code === "42501" ? "Не отправлено: вы замучены или заблокированы, либо у вас нет прав писать сюда." : "Не отправлено: " + error.message); }
@@ -609,7 +628,7 @@ async function createChat() {
   if (handle && !HRE.test(handle)) { $("cerr").textContent = "Юзернейм: 3–20 символов, a-z, 0-9 и _"; return; }
   const {data, error} = await sb.from("chats").insert({kind, title, handle: handle || null, description: $("cdescin").value.trim(), owner_id: me.id}).select().single();
   if (error) { $("cerr").textContent = error.code === "23505" ? "Этот юзернейм занят" : error.message; return; }
-  chats[data.id] = data; await loadChats(); open(data.id);
+  chats[data.id] = data; await loadChats(); await loadMyChannels(); open(data.id);
 }
 async function search() {
   const box = $("fres"); box.textContent = "";
@@ -659,12 +678,12 @@ async function openUser(id) {
   const showTab = k => {
     [...tabs.children].forEach(t => t.classList.toggle("on", t.dataset.k === k)); body.textContent = "";
     if (k === "media") {
-      const items = msgs.filter(m => m.media_url).reverse();
+      const items = msgs.filter(m => m.media_url && m.media_type !== "audio").reverse();
       if (!items.length) { body.append(el("div", "empty", "Общих фото и видео пока нет")); return; }
       const grid_ = el("div", "mg");
       items.forEach(m => {
         const t = el("div"); let n;
-        if (m.media_type === "video") { n = el("video"); n.src = m.media_url; n.preload = "metadata"; n.muted = true; } else { n = el("img"); n.src = m.media_url; }
+        if (m.media_type === "video" || m.media_type === "round") { n = el("video"); n.src = m.media_url; n.preload = "metadata"; n.muted = true; } else { n = el("img"); n.src = m.media_url; }
         t.append(n); t.onclick = () => window.open(m.media_url, "_blank"); grid_.append(t);
       });
       body.append(grid_);
@@ -1050,10 +1069,11 @@ async function loadCounts(c) {
 }
 async function openComments(post) {
   cm = {post, gid: chats[cur].linked_group_id, title: chats[cur].title, list: []};
+  asCm = null; $("cmasb").style.display = myChannels.length ? "" : "none"; $("cmasb").textContent = "👤";
   show("cmt"); renderComments();
   const {data} = await sb.from("messages").select("*").eq("chat_id", cm.gid).eq("reply_to", post.id).order("created_at", {ascending: true}).limit(300);
   cm.list = data || [];
-  await loadProfiles(cm.list.map(x => x.user_id));
+  await loadProfiles(cm.list.map(x => x.user_id)); await loadAs(cm.list);
   ccount[post.id] = cm.list.length;
   renderComments();
 }
@@ -1063,6 +1083,8 @@ function renderComments() {
   head.append(el("small", "", cm.title));
   if (cm.post.media_url) {
     if (cm.post.media_type === "video") { const v = el("video"); v.src = cm.post.media_url; v.controls = true; v.preload = "metadata"; head.append(v); }
+    else if (cm.post.media_type === "audio") { const a = el("audio"); a.src = cm.post.media_url; a.controls = true; head.append(a); }
+    else if (cm.post.media_type === "round") { const v = el("video"); v.src = cm.post.media_url; v.className = "round"; v.controls = true; head.append(v); }
     else { const i = el("img"); i.src = cm.post.media_url; head.append(i); }
   }
   if (cm.post.text) head.append(el("span", "", cm.post.text));
@@ -1070,10 +1092,10 @@ function renderComments() {
   if (!cm.list.length) box.append(el("div", "empty", "Комментариев пока нет. Напишите первым!"));
   const wrap = el("div"); wrap.style.cssText = "padding:0 10px 10px;display:flex;flex-direction:column;gap:6px";
   cm.list.forEach(m => {
-    const mine = m.user_id === me.id, p = who(m.user_id);
+    const mine = m.user_id === me.id, au = authorOf(m);
     const w = el("div", "mw" + (mine ? " me" : "")), d = el("div", "m");
-    d.append(el("small", "", p.username + badge(p)), el("span", "", m.text), el("time", "", hm(m.created_at)));
-    if (!mine) { const a = avEl(p, true); a.style.cursor = "pointer"; a.onclick = () => openUser(m.user_id); w.append(a); }
+    d.append(el("small", "", au.name), el("span", "", m.text), el("time", "", hm(m.created_at)));
+    if (!mine) { const a = au.av(); if (au.click) { a.style.cursor = "pointer"; a.onclick = au.click; } w.append(a); }
     w.append(d); wrap.append(w);
   });
   box.append(wrap); box.scrollTop = box.scrollHeight;
@@ -1081,7 +1103,7 @@ function renderComments() {
 async function sendComment() {
   const v = $("cmtext").value.trim(); if (!v || !cm) return;
   $("cmtext").value = "";
-  const {data, error} = await sb.from("messages").insert({chat_id: cm.gid, user_id: me.id, reply_to: cm.post.id, text: v}).select().single();
+  const {data, error} = await sb.from("messages").insert({chat_id: cm.gid, user_id: me.id, reply_to: cm.post.id, text: v, as_chat_id: (asCm && canAsChannel("group")) ? asCm : null}).select().single();
   if (error) { $("cmtext").value = v; alert(error.code === "42501" ? "Не отправлено: вы замучены или заблокированы." : "Не отправлено: " + error.message); return; }
   if (!cm.list.some(x => x.id === data.id)) cm.list.push(data);
   ccount[cm.post.id] = cm.list.length; renderComments();
@@ -1185,10 +1207,99 @@ async function clearChat(forAll) {
   renderList(); renderChat();
 }
 
+/* ---------- «писать от имени канала» ---------- */
+async function loadMyChannels() {
+  const {data} = await sb.from("chats").select("*").eq("owner_id", me.id).eq("kind", "channel");
+  myChannels = data || []; myChannels.forEach(c => { chats[c.id] = chats[c.id] || c; });
+}
+async function loadAs(msgs) {
+  const miss = [...new Set(msgs.map(m => m.as_chat_id).filter(i => i && !chats[i]))];
+  if (!miss.length) return;
+  const {data} = await sb.from("chats").select("*").in("id", miss);
+  (data || []).forEach(c => chats[c.id] = c);
+}
+function authorOf(m) {
+  const ch = m.as_chat_id && chats[m.as_chat_id];
+  if (ch) return {name: ch.title + " 📢", av: () => cAv(ch, true), click: null};
+  const p = who(m.user_id);
+  return {name: p.username + badge(p), av: () => avEl(p, true), click: () => openUser(m.user_id)};
+}
+const canAsChannel = kind => kind === "channel" || isPrem(me) || me.is_admin;
+function curAs(chatId) {
+  const c = chats[chatId]; if (!c) return null;
+  let v = asMap[chatId];
+  if (v === undefined) v = c.kind === "channel" && c.owner_id === me.id ? c.id : null;
+  return v && canAsChannel(c.kind) ? v : null;
+}
+function syncAs() {
+  const c = chats[cur];
+  $("asb").style.display = c && myChannels.length && (c.kind === "channel" || c.kind === "group") ? "" : "none";
+  if (c) $("asb").textContent = curAs(cur) ? "📢" : "👤";
+  $("cmasb").textContent = asCm ? "📢" : "👤";
+}
+function pickAs(kind, now, apply) {
+  const b = $("msb"); b.textContent = "";
+  b.append(el("div", "lbl", "Писать от имени"));
+  const add = (t, id, locked) => {
+    const x = el("button", "btn" + (now === id ? "" : " g"), t + (locked ? " 🔒" : ""));
+    x.onclick = () => { closeMenu(); if (locked) { alert("Писать от имени канала в группах и комментариях можно только с Премиумом 💎"); return; } apply(id); };
+    b.append(x);
+  };
+  add("👤 " + me.username + " (мой аккаунт)", null, false);
+  myChannels.forEach(c => add("📢 " + c.title, c.id, !canAsChannel(kind)));
+  const x = el("button", "btn g", "Отмена"); x.onclick = closeMenu; b.append(x);
+  $("ms").style.display = "flex";
+}
+
+/* ---------- голосовые и кружки ---------- */
+function syncSend() { $("send").textContent = $("text").value.trim() ? "➤" : "🎤"; }
+function pickMime(kind) {
+  const list = kind === "round" ? ["video/webm;codecs=vp8,opus", "video/webm", "video/mp4"] : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  return list.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+}
+const fmtT = ms => { const t = Math.floor(ms / 1000); return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); };
+async function startRec(kind) {
+  if (rec) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) { alert("Этот браузер не умеет записывать звук и видео."); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia(kind === "round" ? {audio: true, video: {facingMode: "user", width: {ideal: 480}, height: {ideal: 480}}} : {audio: true}); }
+  catch (e) { alert("Нет доступа к микрофону или камере. Разрешите его в настройках браузера."); return; }
+  const mime = pickMime(kind);
+  const mr = new MediaRecorder(stream, mime ? {mimeType: mime} : undefined);
+  rec = {mr, stream, kind, chunks: [], t0: Date.now(), cancel: false, mime: mr.mimeType || mime};
+  mr.ondataavailable = e => { if (e.data && e.data.size) rec.chunks.push(e.data); };
+  mr.onstop = finishRec;
+  mr.start(300);
+  $("rc").style.display = "flex";
+  $("rcv").style.display = kind === "round" ? "block" : "none"; $("rcm").style.display = kind === "round" ? "none" : "block";
+  if (kind === "round") { const v = $("rcvid"); v.srcObject = stream; v.play().catch(() => {}); }
+  rec.timer = setInterval(() => { const d = Date.now() - rec.t0; $("rct").textContent = fmtT(d); if (d > (kind === "round" ? 60000 : 300000)) stopRec(false); }, 250);
+}
+function stopRec(cancel) { if (!rec) return; rec.cancel = cancel; if (rec.mr.state !== "inactive") rec.mr.stop(); }
+async function finishRec() {
+  const r = rec; clearInterval(r.timer); r.stream.getTracks().forEach(t => t.stop());
+  $("rc").style.display = "none"; $("rcvid").srcObject = null; $("rct").textContent = "0:00"; rec = null;
+  if (r.cancel || Date.now() - r.t0 < 800 || !r.chunks.length) return;
+  const type = (r.mime || (r.kind === "round" ? "video/webm" : "audio/webm")).split(";")[0];
+  const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : "webm";
+  const blob = new Blob(r.chunks, {type});
+  if (blob.size > 45 * 1024 * 1024) { alert("Запись слишком большая"); return; }
+  try {
+    const path = me.id + "/" + crypto.randomUUID() + "." + ext;
+    const up = await sb.storage.from("media").upload(path, blob, {contentType: type});
+    if (up.error) throw up.error;
+    await send({url: sb.storage.from("media").getPublicUrl(path).data.publicUrl, type: r.kind === "round" ? "round" : "audio"});
+  } catch (x) { alert("Не удалось отправить: " + x.message); }
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => { if (e.key === "Enter") submit(); };
-$("text").onkeydown = e => { if (e.key === "Enter") send(); }; $("send").onclick = () => send();
+$("text").onkeydown = e => { if (e.key === "Enter") send(); }; $("send").onclick = () => { if ($("text").value.trim()) send(); else startRec("voice"); };
+$("text").oninput = syncSend; $("rb").onclick = () => startRec("round");
+$("rccancel").onclick = () => stopRec(true); $("rcsend").onclick = () => stopRec(false);
+$("asb").onclick = () => { const c = chats[cur]; pickAs(c.kind, curAs(cur), id => { asMap[cur] = id; syncAs(); }); };
+$("cmasb").onclick = () => pickAs("group", asCm, id => { asCm = id; syncAs(); });
 $("attach").onclick = () => $("mfile").click(); $("mfile").onchange = attach;
 $("back").onclick = () => { cur = null; renderList(); show("list"); loadStories(); };
 $("title").onclick = () => { const c = chats[cur]; if (c.kind === "dm") openUser(c.other); else if (c.kind !== "saved") openInfo(); };
