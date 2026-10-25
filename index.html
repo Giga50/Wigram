@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Мессенджер</title>
+<title>Wigram</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0078d7">
 <link rel="icon" href="icon-192.png">
@@ -122,6 +122,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 #clbar button.off{background:#fff;color:#111}
 #inc{display:none;position:fixed;inset:0;z-index:17;background:#111;color:#fff;flex-direction:column;align-items:center;justify-content:center;gap:10px}
 #inc .pname,#inc .pstat{color:#fff}
+#inl{display:none;max-height:40vh;overflow-y:auto;background:var(--bg);border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -129,7 +130,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 <div class="screen on" id="boot"><div class="empty">Загрузка…</div></div>
 
 <div class="screen" id="auth"><div class="form">
-  <h2 id="authtitle">Мессенджер</h2>
+  <h2 id="authtitle">Wigram</h2>
   <div class="tabs" id="authtabs"><button id="tl" class="on">Вход</button><button id="tr">Регистрация</button></div>
   <div id="formbox" style="display:flex;flex-direction:column;gap:10px">
     <input id="tgu" autocomplete="username" autocapitalize="none" maxlength="34" placeholder="Юз Telegram: @username">
@@ -162,6 +163,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
   <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="callb">📞</button><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
+  <div id="inl"></div>
   <div class="bar" id="cbar"><button class="g" id="attach">📎</button><button class="g" id="giftb" style="display:none">🎁</button><button class="g" id="asb" style="display:none">👤</button><button class="g" id="rb">⭕</button><input id="text" autocomplete="off" maxlength="500" placeholder="Сообщение"><button id="send">🎤</button></div>
   <div class="bar ro" id="robar" style="display:none">В этом канале пишет только владелец</div>
   <input type="file" id="mfile" accept="image/*,video/*" style="display:none">
@@ -634,7 +636,7 @@ function renderChat() {
   box.scrollTop = box.scrollHeight;
 }
 function open(id) {
-  cur = id; show("chat"); renderChat();
+  cur = id; hideInline(); show("chat"); renderChat();
   const c = chats[id]; if (c.kind === "channel" && c.linked_group_id) loadCounts(c);
   if (c.kind === "dm") sb.from("profiles").select("*").eq("id", c.other).maybeSingle().then(({data}) => {
     if (data) { prof[data.id] = data; if (cur === id && scr === "chat") $("cdesc").textContent = data.is_bot ? "бот" : seen(data.last_seen); }
@@ -1431,10 +1433,17 @@ bot_get_updates {p_token, p_offset, p_limit}
 bot_send_message {p_token, p_chat_id, p_text, p_media_url, p_media_type}
 bot_edit_message {p_token, p_message_id, p_text}
 bot_delete_message {p_token, p_message_id}
+bot_get_inline {p_token}
+bot_answer_inline {p_token, p_query_id, p_results}
 
 Ответ: {"ok": true, "result": ...} или {"ok": false, "error": "..."}
 p_media_type: image, video, audio или round.
 Пользователь пишет боту в личном чате, бот получает сообщение через bot_get_updates. Обработав обновления, передавайте p_offset = update_id + 1: старые удаляются. Сообщение боту: до 500 символов.`);
+  sec("Инлайн-режим: @бот запрос", `Пользователь пишет в любом чате: @юзернейм_бота запрос, и под полем ввода появляются результаты. Выбранный результат отправляется в чат; в группах и каналах можно выбрать, от чьего имени.
+
+Без кода: в BotMaster отправьте /addinline юзернейм и присылайте картинки, звуки или видео. Подпись к файлу станет названием, по нему ищут. В конце напишите /done.
+
+С кодом: бот каждую секунду-две вызывает bot_get_inline (список запросов) и отвечает через bot_answer_inline. p_results — массив до 20 элементов вида {"id": "1", "title": "Название", "url": "https://...", "type": "image"} (type: image, audio или video; адрес только https). Если бот не ответит за 8 секунд, пользователь увидит «Бот не ответил».`);
   sec("Пример на Python: эхо-бот", `import requests, time
 URL = "${SUPABASE_URL}/rest/v1/rpc/"
 KEY = "${SUPABASE_KEY}"
@@ -1467,6 +1476,7 @@ let call = null, inc = null, callsSub = false, ringT = null;
 
 function subscribeExtras() {
   if (callsSub) return; callsSub = true;
+  setInterval(() => { if (me && !call && !inc) checkIncoming(); }, 4000);
   sb.channel("calls")
     .on("postgres_changes", {event: "INSERT", schema: "public", table: "calls"}, p => onCallInsert(p.new))
     .on("postgres_changes", {event: "UPDATE", schema: "public", table: "calls"}, p => onCallUpdate(p.new))
@@ -1508,18 +1518,25 @@ async function getMedia() {
 }
 async function sendSignal(kind, payload) {
   const {error} = await sb.from("call_signals").insert({call_id: call.id, to_user: call.peer, kind, payload});
-  if (error) console.warn(error.message);
+  if (error) { console.warn(error.message); if (call && !call.sigErr) { call.sigErr = 1; $("cls").textContent = "Ошибка связи: " + error.message; } }
 }
 async function makePc() {
   const pc = new RTCPeerConnection(ICE); call.pc = pc;
   call.local.getTracks().forEach(t => pc.addTrack(t, call.local));
   pc.ontrack = e => { $("clrv").srcObject = e.streams[0]; $("clrv").play().catch(() => {}); };
   pc.onicecandidate = e => { if (e.candidate) sendSignal("ice", e.candidate.toJSON()); };
+  pc.oniceconnectionstatechange = () => {
+    if (!call || call.pc !== pc) return;
+    const st = pc.iceConnectionState;
+    if (st === "connected" || st === "completed") callConnected();
+    else if (!call.started) $("cls").textContent = "Соединение… (" + st + ")";
+  };
   pc.onconnectionstatechange = () => {
     if (!call || call.pc !== pc) return;
     if (pc.connectionState === "connected") callConnected();
     else if (pc.connectionState === "failed") { alert("Не удалось соединиться. Возможно, нужен TURN-сервер (см. раздел звонков в инструкции)."); hangup("failed", true); }
   };
+  call.poll = setInterval(pollCall, 1500);
   for (const s of call.queue.splice(0)) await onSignal(s);
 }
 function callConnected() {
@@ -1564,7 +1581,7 @@ async function startCall(peer, kind) {
   call.timeout = setTimeout(() => { if (call && !call.started) hangup("missed", true); }, 45000);
 }
 function cleanupCall(c) {
-  clearTimeout(c.timeout); clearInterval(c.timer);
+  clearTimeout(c.timeout); clearInterval(c.timer); clearInterval(c.poll);
   try { c.local && c.local.getTracks().forEach(t => t.stop()); } catch (e) {}
   try { c.pc && c.pc.close(); } catch (e) {}
   $("cl").style.display = "none"; $("clrv").srcObject = null; $("cllv").srcObject = null;
@@ -1587,8 +1604,23 @@ async function hangup(reason, notify) {
     } catch (e) {}
   }
 }
+async function pollCall() {
+  const c = call; if (!c || !c.id || c.polling) return;
+  c.polling = true;
+  try {
+    if (!c.started) {
+      const {data} = await sb.from("call_signals").select("*").eq("call_id", c.id).eq("to_user", me.id).order("id", {ascending: true});
+      for (const s of data || []) await onSignal(s);
+    }
+    const r = await sb.from("calls").select("status").eq("id", c.id).maybeSingle();
+    if (r.data && call === c && ["declined", "missed", "ended", "busy"].includes(r.data.status)) hangup(r.data.status, false);
+  } catch (e) {}
+  c.polling = false;
+}
 function onCallInsert(c) { if (c.callee_id === me.id && c.status === "ringing") incoming(c); }
+const seenCalls = new Set();
 async function incoming(c) {
+  if (seenCalls.has(c.id)) return; seenCalls.add(c.id);
   if (call || inc) { await sb.from("calls").update({status: "busy", ended_at: new Date().toISOString()}).eq("id", c.id); return; }
   await loadProfiles([c.caller_id]);
   const p = who(c.caller_id);
@@ -1619,7 +1651,7 @@ async function acceptCall() {
   await makePc();
   const {data} = await sb.from("call_signals").select("*").eq("call_id", c.id).eq("to_user", me.id).order("id", {ascending: true});
   for (const s of data || []) await onSignal(s);
-  call && (call.timeout = setTimeout(() => { if (call && !call.started) hangup("failed", true); }, 30000));
+  call && (call.timeout = setTimeout(() => { if (call && !call.started) { alert("Не удалось соединиться. Скорее всего, нужен TURN-сервер (инструкция в чате)."); hangup("failed", true); } }, 40000));
 }
 async function declineCall() {
   if (!inc) return;
@@ -1631,11 +1663,53 @@ function onCallUpdate(c) {
   if (call && call.id === c.id && ["declined", "missed", "ended", "busy"].includes(c.status)) hangup(c.status, false);
 }
 
+/* ---------- инлайн-боты: «@бот запрос» ---------- */
+let inlTimer = null, inlSeq = 0;
+function hideInline() { inlSeq++; clearTimeout(inlTimer); $("inl").style.display = "none"; }
+function onTextInput() {
+  syncSend();
+  const m = $("text").value.match(/^@([A-Za-z0-9_]{3,20}) ([^]*)$/);
+  clearTimeout(inlTimer);
+  if (!m) { if ($("inl").style.display !== "none") hideInline(); return; }
+  inlTimer = setTimeout(() => inlineSearch(m[1].toLowerCase(), m[2]), 350);
+}
+async function inlineSearch(bot, q) {
+  const seq = ++inlSeq, box = $("inl");
+  box.style.display = "block"; box.textContent = ""; box.append(el("div", "lbl", "  Ищу…"));
+  const r = await sb.rpc("inline_search", {p_bot: bot, p_query: q}), d = r.data;
+  if (seq !== inlSeq) return;
+  if (r.error || !d || !d.ok) { renderInline([], (d && d.error) || "Не удалось получить результаты"); return; }
+  if (d.results) { renderInline(d.results); return; }
+  for (let i = 0; i < 16; i++) {
+    await new Promise(res => setTimeout(res, 500));
+    if (seq !== inlSeq) return;
+    const x = await sb.rpc("inline_result", {p_id: d.query_id});
+    if (x.data && x.data.done) { renderInline(x.data.results); return; }
+  }
+  renderInline([], "Бот не ответил");
+}
+function renderInline(items, msg) {
+  const box = $("inl"); box.textContent = "";
+  if (!items.length) { box.append(el("div", "lbl", "  " + (msg || "Ничего не найдено"))); return; }
+  items.forEach(it => {
+    const rt = el("div", "rt"); rt.append(el("b", "", it.title), el("div", "", {image: "Фото", audio: "Звук", video: "Видео"}[it.type] || ""));
+    let th;
+    if (it.type === "image") { th = el("div", "av s"); const i = el("img"); i.src = it.url; th.append(i); }
+    else th = el("div", "av s", it.type === "audio" ? "🎵" : "🎬");
+    const r = el("div", "row"); r.append(th, rt); r.onclick = () => sendInline(it); box.append(r);
+  });
+}
+async function sendInline(it) {
+  hideInline();
+  $("text").value = it.type === "audio" ? it.title : ""; syncSend();
+  await send({url: it.url, type: it.type});
+}
+
 /* ---------- запуск ---------- */
 $("tl").onclick = () => setMode("login"); $("tr").onclick = () => setMode("reg");
 $("submit").onclick = submit; $("pass").onkeydown = e => { if (e.key === "Enter") submit(); };
 $("text").onkeydown = e => { if (e.key === "Enter") send(); }; $("send").onclick = () => { if ($("text").value.trim()) send(); else startRec("voice"); };
-$("text").oninput = syncSend; $("rb").onclick = () => startRec("round");
+$("text").oninput = onTextInput; $("rb").onclick = () => startRec("round");
 $("rccancel").onclick = () => stopRec(true); $("rcsend").onclick = () => stopRec(false);
 $("asb").onclick = () => { const c = chats[cur]; pickAs(c.kind, curAs(cur), id => { asMap[cur] = id; syncAs(); }); };
 $("cmasb").onclick = () => pickAs("group", asCm, id => { asCm = id; syncAs(); });
