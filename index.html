@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <title>Wigram</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0078d7">
+<meta name="theme-color" content="#5181b8">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("wg_theme")||"vk"}catch(e){document.documentElement.dataset.theme="vk"}</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -133,6 +134,44 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 .wtab{display:flex;gap:8px;padding:10px 12px;flex-wrap:wrap}
 .wtab button{border:0;border-radius:18px!important;padding:8px 14px;background:var(--bar);color:var(--text);font:inherit}
 .wtab button.on{background:var(--acc);color:#fff}
+#wk{position:relative;background:#000}
+#wkfeed{flex:1;overflow-y:scroll;scroll-snap-type:y mandatory;min-height:0}
+.wkv{position:relative;background:#000;scroll-snap-align:start;scroll-snap-stop:always;overflow:hidden}
+.wkv video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+#wktop{position:absolute;top:0;left:0;right:0;z-index:3;display:flex;gap:6px;align-items:center;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top,0px));background:linear-gradient(#000a,transparent)}
+#wktop button{background:none;border:0;color:#ddd;font:inherit;font-size:17px;padding:4px 8px;text-shadow:0 1px 3px #000}
+#wktop button.on{color:#fff;font-weight:700;border-bottom:2px solid #fff}
+.wkside{position:absolute;right:8px;bottom:90px;display:flex;flex-direction:column;gap:14px;align-items:center;z-index:2}
+.wkside .av{border:2px solid #fff}
+.wkb{background:none;border:0;color:#fff;display:flex;flex-direction:column;align-items:center;font:inherit;text-shadow:0 1px 3px #000}
+.wkb span{font-size:30px;line-height:1}.wkb small{font-size:12px;min-height:14px}
+.wkinfo{position:absolute;left:12px;right:80px;bottom:18px;color:#fff;text-shadow:0 1px 3px #000;z-index:2;overflow-wrap:anywhere}
+.wkd{font-size:13px;opacity:.9;max-height:3.6em;overflow:hidden}
+.wkheart{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%) scale(0);font-size:90px;pointer-events:none;z-index:3;transition:transform .25s}
+.wkheart.pop{transform:translate(-50%,-50%) scale(1)}
+#wkc{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:13;align-items:flex-end}
+#wkcb{background:var(--bg);width:100%;height:70vh;display:flex;flex-direction:column}
+.wkch{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.wkch button{background:none;border:0;color:var(--text);font-size:20px}
+html[data-theme="vk"]{--acc:#5181b8;--bg:#fff;--text:#000;--sub:#818c99;--in:#f0f2f5;--out:#dde8f5;--line:#e1e3e6;--bar:#f0f2f5}
+html[data-theme="vkd"]{--acc:#5181b8;--bg:#222;--text:#e1e3e6;--sub:#76787a;--in:#2c2d2e;--out:#2b4764;--line:#363738;--bar:#292a2b}
+html[data-theme^="vk"] body{font-family:Tahoma,Verdana,Arial,sans-serif;font-size:14px}
+html[data-theme="vk"] body,html[data-theme="vk"] .screen{background:#edeef0}
+html[data-theme="vkd"] body,html[data-theme="vkd"] .screen{background:#19191a}
+html[data-theme^="vk"] header{padding:10px 14px;font-size:16px;font-weight:700}
+html[data-theme^="vk"] header .t{font-weight:700}
+html[data-theme^="vk"] .row,html[data-theme^="vk"] .wtc,html[data-theme^="vk"] .inf{background:var(--bg)}
+html[data-theme^="vk"] .btn,html[data-theme^="vk"] input,html[data-theme^="vk"] textarea,html[data-theme^="vk"] select{border-radius:3px}
+html[data-theme^="vk"] .btn{background:var(--acc);font-weight:700}
+html[data-theme^="vk"] .btn.g{background:var(--bar);color:var(--acc);border:1px solid var(--line)}
+html[data-theme^="vk"] .m{border-radius:4px}
+html[data-theme^="vk"] .av{border-radius:3px}
+html[data-theme^="vk"] #nav{background:var(--bg)}
+html[data-theme^="vk"] #nav button.on{background:none;color:var(--acc);font-weight:700}
+html[data-theme^="vk"] .tabs button.on{background:var(--acc)}
+html[data-theme^="vk"] .rt b,html[data-theme^="vk"] .m small{color:var(--acc)}
+html[data-theme="vk"] .lbl{color:#55677d}
+html[data-theme="vkd"] .lbl{color:#8c8e91}
 </style>
 </head>
 <body>
@@ -163,7 +202,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 </div></div>
 
 <div class="screen" id="list">
-  <header><span class="t">Чаты</span><button id="find">🔍</button><button id="new">＋</button></header>
+  <header><span class="t">Чаты</span><button id="ctb">👥</button><button id="find">🔍</button><button id="new">＋</button></header>
   <div id="stories"></div>
   <div class="scroll" id="rooms"></div>
   <input type="file" id="sfile" accept="image/*,video/*" style="display:none">
@@ -297,6 +336,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 <div class="screen" id="set">
   <header><span class="t">Настройки</span></header>
   <div class="scroll">
+    <div class="row" id="sthm"><div class="av s">🎨</div><div class="rt"><b>Тема оформления</b></div></div>
     <div class="row" id="sbots"><div class="av s">🤖</div><div class="rt"><b>Боты и API</b></div></div>
     <div class="row" id="sacc"><div class="av s">👥</div><div class="rt"><b>Аккаунты (до 4)</b></div></div>
     <div class="row" id="sedit"><div class="av s">✏️</div><div class="rt"><b>Редактировать профиль</b></div></div>
@@ -321,7 +361,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 </div>
 
 <div class="screen" id="wtup">
-  <header><button id="wtupback">←</button><span class="t">Загрузить видео</span></header>
+  <header><button id="wtupback">←</button><span class="t" id="wtuptitle">Загрузить видео</span></header>
   <div class="scroll"><div class="form">
     <button class="btn" id="wtpick">Выбрать видео</button>
     <input type="file" id="wtfile" accept="video/*" style="display:none">
@@ -333,6 +373,17 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
     <div class="lbl">Видео до 50 МБ. Загрузка может занять время, не закрывайте приложение.</div>
   </div></div>
 </div>
+
+<div class="screen" id="wk">
+  <div id="wktop"><button id="wkall" class="on">Для вас</button><button id="wksubs">Подписки</button><span style="flex:1"></span><button id="wkmute">🔊</button><button id="wknew">＋</button></div>
+  <div id="wkfeed"></div>
+</div>
+
+<div id="wkc"><div id="wkcb">
+  <div class="wkch"><b>Комментарии</b><button id="wkcx">✕</button></div>
+  <div class="scroll" id="wkcl"></div>
+  <div class="bar"><input id="wkci" autocomplete="off" maxlength="500" placeholder="Комментарий"><button id="wkcs">➤</button></div>
+</div></div>
 
 <div class="screen" id="bots">
   <header><button id="botsback">←</button><span class="t">Боты и API</span></header>
@@ -356,7 +407,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bar);padding:10
 <nav id="nav">
   <button data-s="list"><i>💬</i>Чаты</button>
   <button data-s="wt"><i>▶️</i>WiTube</button>
-  <button data-s="ct"><i>👥</i>Контакты</button>
+  <button data-s="wk"><i>🎬</i>WiTok</button>
   <button data-s="set"><i>⚙️</i>Настройки</button>
   <button data-s="mp"><span id="navme"></span>Профиль</button>
 </nav>
@@ -408,6 +459,25 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "messenger-auth", storage: window.localStorage}
 });
 const $ = id => document.getElementById(id);
+const THEMES = {vk: "Старый ВК", vkd: "ВК тёмный", wigram: "Wigram (Windows 10)"};
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("wg_theme", t); } catch (e) {}
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.content = t === "vkd" ? "#222222" : t === "vk" ? "#5181b8" : "#0078d7";
+}
+function themeMenu() {
+  const b = $("msb"); b.textContent = "";
+  b.append(el("div", "lbl", "Тема оформления"));
+  const cur_ = document.documentElement.dataset.theme || "vk";
+  Object.keys(THEMES).forEach(k => {
+    const x = el("button", "btn" + (k === cur_ ? "" : " g"), THEMES[k] + (k === cur_ ? " ✓" : ""));
+    x.onclick = () => { applyTheme(k); $("ms").style.display = "none"; };
+    b.append(x);
+  });
+  const c = el("button", "btn g", "Закрыть"); c.onclick = () => { $("ms").style.display = "none"; }; b.append(c);
+  $("ms").style.display = "flex";
+}
 const AV = "😀 😎 🤓 🥳 😺 🐶 🦊 🐼 🐸 🦁 🐵 🐧 🚀 ⚡ 🔥 🌈 🎧 🎮 ⚽ 🍕 🌵 🍀 👾 🤖".split(" ");
 const HRE = /^[a-z0-9_]{3,20}$/;
 let me = null, cur = null, mode = "login", kind = "group", subscribed = false, fmode = "chats";
@@ -421,7 +491,8 @@ const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute
 function show(id) {
   prevScr = scr; scr = id;
   document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
-  $("nav").style.display = ["list", "wt", "ct", "set", "mp"].includes(id) ? "flex" : "none";
+  if (id !== "wk" && typeof wkPauseAll === "function") wkPauseAll();
+  $("nav").style.display = ["list", "wt", "wk", "ct", "set", "mp"].includes(id) ? "flex" : "none";
   document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x.dataset.s === id));
 }
 const who = id => prof[id] || {username: "…", avatar: "👤"};
@@ -1156,6 +1227,7 @@ function openDevices() { show("dv"); loadDevices(); }
 function navGo(k) {
   if (k === "list") { renderList(); show("list"); loadStories(); }
   else if (k === "ct") { show("ct"); loadContacts(); }
+  else if (k === "wk") { show("wk"); loadWk(); }
   else if (k === "wt") { show("wt"); loadFeed(); }
   else if (k === "set") show("set");
   else openMp();
@@ -1745,7 +1817,7 @@ async function sendInline(it) {
 }
 
 /* ---------- WiTube ---------- */
-let wtMode = "all", wtVid = null, wtFile = null, wtMeta = null, wtTimer = null;
+let wtMode = "all", wtVid = null, wtFile = null, wtMeta = null, wtTimer = null, wtShort = false;
 const wtViewed = new Set();
 const fmtDur = t => { const m = Math.floor(t / 60), s = t % 60; return m + ":" + String(s).padStart(2, "0"); };
 function ago(ts) {
@@ -1762,7 +1834,7 @@ async function loadFeed() {
     if (!ids.length) { box.textContent = ""; box.append(el("div", "empty", "Вы пока ни на кого не подписаны")); return; }
     qq = qq.in("user_id", ids);
   }
-  const {data, error} = await qq;
+  const res = await qq, error = res.error, data = (res.data || []).filter(v => !v.is_short);
   box.textContent = "";
   if (error) { box.append(el("div", "empty", "WiTube ещё не настроен: запустите witube.sql в Supabase")); return; }
   if (!data.length) { box.append(el("div", "empty", "Видео пока нет. Загрузите первое кнопкой ＋")); return; }
@@ -1873,6 +1945,7 @@ async function wtPicked(e) {
   $("wtprev").textContent = ""; $("wtprev").append(el("div", "lbl", "  Обрабатываем видео…"));
   if (!$("wttitle").value) $("wttitle").value = f.name.replace(/\.[^.]+$/, "").slice(0, 100);
   wtMeta = await videoMeta(f);
+  if (wtShort && wtMeta.duration > 60) { wtFile = null; wtMeta = null; $("wtprev").textContent = ""; $("wterr").textContent = "Шорт — до 60 секунд"; return; }
   $("wtprev").textContent = "";
   const th = el("div", "wtth");
   if (wtMeta.blob) { const i = el("img"); i.src = URL.createObjectURL(wtMeta.blob); th.append(i); } else th.textContent = "▶";
@@ -1897,11 +1970,139 @@ async function wtPublish() {
       if (!tu.error) thumb = sb.storage.from("media").getPublicUrl(tpath).data.publicUrl;
     }
     const {error} = await sb.from("wt_videos").insert({user_id: me.id, title, description: $("wtdesc").value.trim(),
+      ...(wtShort ? {is_short: true} : {}),
       video_url: sb.storage.from("media").getPublicUrl(vpath).data.publicUrl, thumb_url: thumb, duration: wtMeta ? wtMeta.duration || null : null});
     if (error) throw error;
-    wtFile = null; wtMeta = null; show("wt"); loadFeed();
+    wtFile = null; wtMeta = null;
+    if (wtShort) { show("wk"); loadWk(); } else { show("wt"); loadFeed(); }
   } catch (x) { $("wterr").textContent = "Не удалось опубликовать: " + (x.message || x); }
   btn.disabled = false; btn.textContent = "Опубликовать";
+}
+
+/* ---------- WiTok ---------- */
+let wkMode = "all", wkMuted = false, wkObs = null, wkCur = null;
+function wkMuteBtn() { $("wkmute").textContent = wkMuted ? "🔇" : "🔊"; }
+function wkSize() { const f = $("wkfeed"), h = f.clientHeight; if (h) f.querySelectorAll(".wkv").forEach(c => c.style.height = h + "px"); }
+window.addEventListener("resize", wkSize);
+function wkPauseAll() { document.querySelectorAll("#wkfeed video").forEach(v => v.pause()); }
+function wkSet(btn, icon, n) { btn.textContent = ""; btn.append(el("span", "", icon), el("small", "", n === "" ? "" : String(n))); }
+function wkBtn(icon, n) { const b = el("button", "wkb"); wkSet(b, icon, n); return b; }
+function wkPlay(card) {
+  const v = card.querySelector("video"); if (!v.src) v.src = v.dataset.src;
+  v.muted = wkMuted;
+  const pr = v.play();
+  if (pr) pr.catch(() => { v.muted = true; wkMuted = true; wkMuteBtn(); v.play().catch(() => {}); });
+  const id = card.dataset.id;
+  if (!wtViewed.has(id)) { wtViewed.add(id); sb.rpc("wt_view", {p_id: id}).then(() => {}); }
+}
+async function loadWk() {
+  const feed = $("wkfeed"); wkPauseAll(); wkMuteBtn();
+  feed.textContent = ""; feed.append(el("div", "empty", "Загрузка…"));
+  let qq = sb.from("wt_videos").select("*").eq("is_short", true).order("created_at", {ascending: false}).limit(30);
+  if (wkMode === "subs") {
+    const s = await sb.from("wt_subs").select("channel_id").eq("user_id", me.id), ids = (s.data || []).map(x => x.channel_id);
+    if (!ids.length) { feed.textContent = ""; feed.append(el("div", "empty", "Вы пока ни на кого не подписаны")); return; }
+    qq = qq.in("user_id", ids);
+  }
+  const {data, error} = await qq;
+  feed.textContent = "";
+  if (error) { feed.append(el("div", "empty", "WiTok ещё не настроен: запустите witube.sql, потом witok.sql в Supabase")); return; }
+  if (!data.length) { feed.append(el("div", "empty", "Шортов пока нет. Загрузите первый кнопкой ＋")); return; }
+  const ids = data.map(v => v.id);
+  await loadProfiles(data.map(v => v.user_id));
+  const [lk, cm, sbs] = await Promise.all([
+    sb.from("wt_likes").select("video_id,user_id").in("video_id", ids),
+    sb.from("wt_comments").select("video_id").in("video_id", ids),
+    sb.from("wt_subs").select("channel_id").eq("user_id", me.id)]);
+  const likes = {}, mine = new Set(), comments = {};
+  (lk.data || []).forEach(x => { likes[x.video_id] = (likes[x.video_id] || 0) + 1; if (x.user_id === me.id) mine.add(x.video_id); });
+  (cm.data || []).forEach(x => comments[x.video_id] = (comments[x.video_id] || 0) + 1);
+  const subs = new Set((sbs.data || []).map(x => x.channel_id));
+  if (wkObs) wkObs.disconnect();
+  wkObs = new IntersectionObserver(es => es.forEach(e => {
+    const v = e.target.querySelector("video"); if (!v) return;
+    if (e.isIntersecting) wkPlay(e.target); else v.pause();
+  }), {root: feed, threshold: 0.75});
+  data.forEach(v => feed.append(wkCard(v, {likes: likes[v.id] || 0, liked: mine.has(v.id), comments: comments[v.id] || 0, subscribed: subs.has(v.user_id)})));
+  wkSize();
+}
+async function wkLike(v, st, btn) {
+  const r = st.liked ? await sb.from("wt_likes").delete().eq("video_id", v.id).eq("user_id", me.id) : await sb.from("wt_likes").insert({video_id: v.id, user_id: me.id});
+  if (r.error) { alert(r.error.message); return; }
+  st.liked = !st.liked; st.likes += st.liked ? 1 : -1; wkSet(btn, st.liked ? "❤️" : "🤍", st.likes);
+}
+function wkTap(c, vid, v, st) {
+  const now = Date.now();
+  if (c._t && now - c._t < 300) {
+    clearTimeout(c._tm); c._t = 0;
+    if (!st.liked) wkLike(v, st, c._lk);
+    const h = c.querySelector(".wkheart"); h.classList.add("pop"); setTimeout(() => h.classList.remove("pop"), 500);
+    return;
+  }
+  c._t = now;
+  c._tm = setTimeout(() => { c._t = 0; if (vid.paused) vid.play().catch(() => {}); else vid.pause(); }, 300);
+}
+function wkCard(v, st) {
+  const p = who(v.user_id), c = el("div", "wkv"); c.dataset.id = v.id;
+  const vid = el("video"); vid.loop = true; vid.playsInline = true; vid.preload = "none"; vid.muted = wkMuted; vid.dataset.src = v.video_url;
+  if (v.thumb_url) vid.poster = v.thumb_url;
+  vid.onclick = () => wkTap(c, vid, v, st);
+  const side = el("div", "wkside");
+  const av = avEl(p, true); av.classList.add("pav"); av.style.cursor = "pointer"; av.onclick = () => openUser(v.user_id);
+  const lk = wkBtn(st.liked ? "❤️" : "🤍", st.likes); c._lk = lk; lk.onclick = () => wkLike(v, st, lk);
+  const cm = wkBtn("💬", st.comments); cm.onclick = () => openWkComments(v, cm);
+  side.append(av, lk, cm);
+  if (v.user_id !== me.id) {
+    const sn = wkBtn(st.subscribed ? "✅" : "➕", "");
+    sn.onclick = async () => {
+      const r = st.subscribed ? await sb.from("wt_subs").delete().eq("channel_id", v.user_id).eq("user_id", me.id) : await sb.from("wt_subs").insert({channel_id: v.user_id, user_id: me.id});
+      if (r.error) { alert(r.error.message); return; }
+      st.subscribed = !st.subscribed; wkSet(sn, st.subscribed ? "✅" : "➕", "");
+    };
+    side.append(sn);
+  }
+  if (v.user_id === me.id || me.is_admin) {
+    const dl = wkBtn("🗑", "");
+    dl.onclick = async () => {
+      if (!confirm("Удалить этот шорт?")) return;
+      const r = await sb.from("wt_videos").delete().eq("id", v.id);
+      if (r.error) { alert(r.error.message); return; }
+      loadWk();
+    };
+    side.append(dl);
+  }
+  const info = el("div", "wkinfo"); info.append(el("b", "", "@" + p.handle + badge(p)), el("div", "", v.title));
+  if (v.description) info.append(el("div", "wkd", v.description));
+  c.append(vid, el("div", "wkheart", "❤️"), side, info);
+  wkObs.observe(c); return c;
+}
+async function openWkComments(v, btn) { wkCur = {v, btn}; $("wkc").style.display = "flex"; await wkLoadComments(); }
+async function wkLoadComments() {
+  const {v, btn} = wkCur, box = $("wkcl"); box.textContent = "";
+  const {data} = await sb.from("wt_comments").select("*").eq("video_id", v.id).order("id", {ascending: true}).limit(200);
+  const list = data || [];
+  await loadProfiles(list.map(x => x.user_id));
+  if (!list.length) box.append(el("div", "empty", "Комментариев пока нет. Напишите первым!"));
+  list.forEach(m => {
+    const p = who(m.user_id), rt = el("div", "rt"), b = el("b");
+    b.append(el("span", "", p.username + badge(p)), el("i", "", ago(m.created_at))); rt.append(b, el("div", "", m.text));
+    rt.lastChild.style.cssText = "white-space:pre-wrap;color:var(--text)";
+    const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p, true), rt);
+    if (m.user_id === me.id || me.is_admin || v.user_id === me.id) {
+      const x = el("button", "btn s g", "✕");
+      x.onclick = async () => { const d = await sb.from("wt_comments").delete().eq("id", m.id); if (d.error) alert(d.error.message); else wkLoadComments(); };
+      r.append(x);
+    }
+    box.append(r);
+  });
+  wkSet(btn, "💬", list.length); box.scrollTop = box.scrollHeight;
+}
+async function wkSendComment() {
+  const t = $("wkci").value.trim(); if (!t || !wkCur) return;
+  $("wkci").value = "";
+  const {error} = await sb.from("wt_comments").insert({video_id: wkCur.v.id, user_id: me.id, text: t});
+  if (error) { $("wkci").value = t; alert(error.code === "42501" ? "Не отправлено: вы замучены или заблокированы." : error.message); return; }
+  wkLoadComments();
 }
 
 /* ---------- запуск ---------- */
@@ -1952,13 +2153,22 @@ $("incyes").onclick = acceptCall; $("incno").onclick = declineCall;
 $("clend").onclick = () => hangup("ended", true);
 $("clmic").onclick = () => { if (!call || !call.local) return; call.muted = !call.muted; call.local.getAudioTracks().forEach(t => t.enabled = !call.muted); $("clmic").textContent = call.muted ? "🔇" : "🎤"; $("clmic").classList.toggle("off", !!call.muted); };
 $("clcam").onclick = () => { if (!call || !call.local) return; call.camOff = !call.camOff; call.local.getVideoTracks().forEach(t => t.enabled = !call.camOff); $("clcam").textContent = call.camOff ? "🚫" : "📷"; $("clcam").classList.toggle("off", !!call.camOff); };
-$("wtnew").onclick = () => { wtFile = null; wtMeta = null; $("wttitle").value = ""; $("wtdesc").value = ""; $("wtprev").textContent = ""; $("wterr").textContent = ""; show("wtup"); };
-$("wtupback").onclick = () => show("wt"); $("wtpick").onclick = () => $("wtfile").click(); $("wtfile").onchange = wtPicked; $("wtpub").onclick = wtPublish;
+$("wtnew").onclick = () => { wtShort = false; $("wtuptitle").textContent = "Загрузить видео"; wtFile = null; wtMeta = null; $("wttitle").value = ""; $("wtdesc").value = ""; $("wtprev").textContent = ""; $("wterr").textContent = ""; show("wtup"); };
+$("wtupback").onclick = () => show(wtShort ? "wk" : "wt"); $("wtpick").onclick = () => $("wtfile").click(); $("wtfile").onchange = wtPicked; $("wtpub").onclick = wtPublish;
 $("wtvback").onclick = () => { const v = document.querySelector("#wtvbox video"); if (v) v.pause(); show("wt"); };
 $("wta").onclick = () => { wtMode = "all"; $("wta").classList.add("on"); $("wts").classList.remove("on"); loadFeed(); };
 $("wts").onclick = () => { wtMode = "subs"; $("wts").classList.add("on"); $("wta").classList.remove("on"); loadFeed(); };
 $("wtq").oninput = () => { clearTimeout(wtTimer); wtTimer = setTimeout(loadFeed, 400); };
 $("wtcs").onclick = sendWtComment; $("wtct").onkeydown = e => { if (e.key === "Enter") sendWtComment(); };
+$("ctb").onclick = () => { show("ct"); loadContacts(); };
+$("wkall").onclick = () => { wkMode = "all"; $("wkall").classList.add("on"); $("wksubs").classList.remove("on"); loadWk(); };
+$("wksubs").onclick = () => { wkMode = "subs"; $("wksubs").classList.add("on"); $("wkall").classList.remove("on"); loadWk(); };
+$("wkmute").onclick = () => { wkMuted = !wkMuted; wkMuteBtn(); document.querySelectorAll("#wkfeed video").forEach(v => v.muted = wkMuted); };
+$("wknew").onclick = () => { wtShort = true; $("wtuptitle").textContent = "Загрузить шорт"; wtFile = null; wtMeta = null; $("wttitle").value = ""; $("wtdesc").value = ""; $("wtprev").textContent = ""; $("wterr").textContent = ""; show("wtup"); };
+$("wkcx").onclick = () => { $("wkc").style.display = "none"; };
+$("wkc").onclick = e => { if (e.target.id === "wkc") $("wkc").style.display = "none"; };
+$("wkcs").onclick = wkSendComment; $("wkci").onkeydown = e => { if (e.key === "Enter") wkSendComment(); };
+$("sthm").onclick = themeMenu;
 $("cgo").onclick = loadContacts; $("cq").onkeydown = e => { if (e.key === "Enter") loadContacts(); };
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
