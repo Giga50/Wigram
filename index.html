@@ -534,7 +534,7 @@ let me = null, cur = null, mode = "login", kind = "group", subscribed = false, f
 let prof = {}, chats = {}, mem = new Set(), all = [], stories = {};
 let regAv = AV[0], pEmoji = AV[0], pUrl = null, pBlob = null, ciUrl = null, ciBlob = null;
 let scr = "auth", prevScr = "auth", sv = {list: [], i: 0, t: null};
-let listTab = "all", myChannels = [], asMap = {}, asCm = null, rec = null, noticeQ = [], noticeOpen = false;
+let loggingOut = false, listTab = "all", myChannels = [], asMap = {}, asCm = null, rec = null, noticeQ = [], noticeOpen = false;
 let cm = null, ccount = {}, cleared = {}, adding = false, pStyle = "classic", pMusic = null, pMFile = null;
 
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
@@ -715,12 +715,14 @@ async function ping() {
   const now = new Date().toISOString();
   await sb.from("profiles").update({last_seen: now}).eq("id", me.id);
   await sb.from("devices").upsert({user_id: me.id, device_id: DEV, name: devName(), last_active: now}, {onConflict: "user_id,device_id"});
+  const rv = await sb.from("devices").select("revoked").eq("user_id", me.id).eq("device_id", DEV).maybeSingle();
+  if (rv.data && rv.data.revoked && !loggingOut) doLogout();
 }
 async function enter(user) {
   let {data} = await sb.from("profiles").select("*").eq("id", user.id).maybeSingle();
   if (!data) data = {id: user.id, username: user.user_metadata?.username || "user", handle: user.user_metadata?.handle || "", bio: "", avatar: user.user_metadata?.avatar || AV[0], avatar_url: null};
   me = data; prof[me.id] = me;
-  if (me.banned) { await sb.auth.signOut({scope: "local"}); me = null; show("auth"); $("err").textContent = "Ваш аккаунт заблокирован."; return; }
+  if (me.banned) { loggingOut = true; await sb.auth.signOut({scope: "local"}); me = null; show("auth"); $("err").textContent = "Ваш аккаунт заблокирован."; return; }
   accInfo();
   $("sadm").style.display = me.is_admin ? "" : "none"; renderNav();
   show("hm"); ping();
@@ -1058,14 +1060,21 @@ async function loadDevices() {
   (data || []).forEach(d => {
     const rt = el("div", "rt"), cur = d.device_id === DEV;
     rt.append(el("b", "", d.name + (cur ? " · это устройство" : "")), el("div", "", seen(d.last_active)));
-    const r = el("div", "row"); r.style.cursor = "default"; r.append(el("div", "av s", "📱"), rt); box.appendChild(r);
+    const r = el("div", "row"); r.style.cursor = "default"; if (d.revoked && !cur) rt.lastChild.textContent += " · ждёт выхода";
+    r.append(el("div", "av s", "📱"), rt);
+    if (!cur && !d.revoked) {
+      const x = el("button", "btn s g", "Выйти");
+      x.onclick = async () => { const u = await sb.from("devices").update({revoked: true}).eq("user_id", me.id).eq("device_id", d.device_id); if (u.error) alert(u.error.message); loadDevices(); };
+      r.append(x);
+    }
+    box.appendChild(r);
   });
 }
 async function logoutOthers() {
   if (!confirm("Выйти из аккаунта на всех других устройствах?")) return;
-  const {error} = await sb.auth.signOut({scope: "others"});
-  if (error) { alert(error.message); return; }
-  await sb.from("devices").delete().neq("device_id", DEV);
+  const r = await sb.from("devices").update({revoked: true}).eq("user_id", me.id).neq("device_id", DEV);
+  if (r.error) { alert("Не удалось: " + r.error.message + " (запустите devices_revoke.sql в Supabase)"); return; }
+  await sb.auth.signOut({scope: "others"});
   loadDevices();
 }
 
@@ -1359,6 +1368,7 @@ async function switchTo(a) {
   location.reload();
 }
 async function doLogout() {
+  loggingOut = true;
   try { await sb.from("devices").delete().eq("device_id", DEV); } catch (e) {}
   const rest = accGet().filter(a => a.id !== (me && me.id)); accSet(rest);
   await sb.auth.signOut({scope: "local"});
@@ -2482,7 +2492,7 @@ $("authtitle").onclick = () => { if (++titleTaps >= 5) { mailMode = true; $("mai
 sb.auth.onAuthStateChange((ev, ses) => {
   try {
     if (ses) { localStorage.setItem("msg_bk", JSON.stringify({access_token: ses.access_token, refresh_token: ses.refresh_token})); accSave(ses); }
-    else if (ev === "SIGNED_OUT") localStorage.removeItem("msg_bk");
+    else if (ev === "SIGNED_OUT") { localStorage.removeItem("msg_bk"); if (me && !loggingOut) location.reload(); }
   } catch (e) {}
 });
 (async function boot() {
