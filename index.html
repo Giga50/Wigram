@@ -813,6 +813,7 @@ async function send(media) {
   if (media) { row.media_url = media.url; row.media_type = media.type; }
   const {error} = await sb.from("messages").insert(row);
   if (error) { $("text").value = v; alert(error.code === "42501" ? "Не отправлено: вы замучены или заблокированы, либо у вас нет прав писать сюда." : "Не отправлено: " + error.message); }
+  else if (chats[row.chat_id] && chats[row.chat_id].other === AI_ID) askAi(row.chat_id);
 }
 async function attach(e) {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -1522,6 +1523,19 @@ async function ackNotice() {
 
 /* ---------- боты и API ---------- */
 const MASTER_ID = "00000000-0000-0000-0000-00000000b077";
+const AI_ID = "00000000-0000-0000-0000-00000000a111";
+const aiBusy = {};
+async function askAi(cid) {
+  if (aiBusy[cid]) return;
+  aiBusy[cid] = true;
+  if (cur === cid && scr === "chat") $("cdesc").textContent = "печатает…";
+  try {
+    const r = await sb.functions.invoke("ai-chat", {body: {chat_id: cid}});
+    if (r.error) throw r.error;
+  } catch (e) { alert("ИИ сейчас недоступен: " + (e.message || e)); }
+  aiBusy[cid] = false;
+  if (cur === cid && scr === "chat") renderChat();
+}
 function renderBots() {
   const b = $("botsbox"); b.textContent = "";
   const o = el("button", "btn", "💬 Открыть BotMaster"); o.style.margin = "12px 16px 4px"; o.onclick = () => writeTo(MASTER_ID); b.append(o);
@@ -2374,7 +2388,7 @@ function renderMenu() {
     ["#e040fb", "🎵", "Музыка", () => alert("Музыка скоро появится")], ["#ff2d55", "▶️", "Видео", () => { show("wt"); loadFeed(); }],
     ["#5181b8", "📇", "Контакты", () => { show("ct"); loadContacts(); }], ["#23c37a", "🔖", "Закладки", openSaved],
     ["#f5a623", "⭐", "Звёзды", openShop], ["#6c5ce7", "🤖", "Боты", () => { show("bots"); renderBots(); }],
-    ["#00b7c3", "🔁", "Аккаунты", () => { show("acc"); renderAcc(); }], ["#e84393", "🎨", "Тема", themeMenu],
+    ["#00b7c3", "🔁", "Аккаунты", () => { show("acc"); renderAcc(); }], ["#e84393", "🎨", "Тема", themeMenu], ["#4d6bfe", "🐋", "DeepSeek", () => writeTo(AI_ID)],
     ["#818c99", "⚙️", "Настройки", () => show("set")]];
   if (me.is_admin) items.push(["#d13438", "🛡", "Админ", openAdmin]);
   items.forEach(([bg, ic, name, fn]) => {
