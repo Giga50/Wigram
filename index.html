@@ -1577,6 +1577,23 @@ const ICE = {iceServers: [
   {urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turns:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject"}
 ]};
 let call = null, inc = null, callsSub = false, ringT = null;
+// Metered TURN: впишите имя приложения Metered без «.metered.live» (например, wigram)
+const METERED_APP = "";
+const METERED_KEY = "pk_live_2d6c9a70bb2ca31a69cd3a48e99b4e86d69acf68";
+async function iceConfig() {
+  if (!METERED_APP) return ICE;
+  const base = "https://" + METERED_APP + ".metered.live/api/v1/turn/credentials";
+  const tries = [() => fetch(base + "?apiKey=" + METERED_KEY), () => fetch(base, {headers: {Authorization: "Bearer " + METERED_KEY}})];
+  for (const t of tries) {
+    try {
+      const r = await t();
+      if (!r.ok) continue;
+      const list = await r.json();
+      if (Array.isArray(list) && list.length) return {iceServers: list.concat(ICE.iceServers.slice(0, 1))};
+    } catch (e) {}
+  }
+  return ICE;
+}
 
 function subscribeExtras() {
   if (callsSub) return; callsSub = true;
@@ -1625,7 +1642,8 @@ async function sendSignal(kind, payload) {
   if (error) { console.warn(error.message); if (call && !call.sigErr) { call.sigErr = 1; $("cls").textContent = "Ошибка связи: " + error.message; } }
 }
 async function makePc() {
-  const pc = new RTCPeerConnection(ICE); call.pc = pc;
+  const cfg = await iceConfig(); if (!call) return;
+  const pc = new RTCPeerConnection(cfg); call.pc = pc;
   call.local.getTracks().forEach(t => pc.addTrack(t, call.local));
   pc.ontrack = e => { $("clrv").srcObject = e.streams[0]; $("clrv").play().catch(() => {}); };
   pc.onicecandidate = e => { if (e.candidate) sendSignal("ice", e.candidate.toJSON()); };
@@ -1680,6 +1698,7 @@ async function startCall(peer, kind) {
   if (error) { const c = call; call = null; cleanupCall(c); alert("Не удалось позвонить: " + error.message); return; }
   call.id = data.id;
   await makePc();
+  if (!call || !call.pc) return;
   const offer = await call.pc.createOffer(); await call.pc.setLocalDescription(offer);
   await sendSignal("offer", call.pc.localDescription.toJSON());
   call.timeout = setTimeout(() => { if (call && !call.started) hangup("missed", true); }, 45000);
