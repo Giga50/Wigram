@@ -228,7 +228,7 @@ html[data-theme="vkd"] .lbl{color:#8c8e91}
 </div>
 
 <div class="screen" id="chat">
-  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="callb">📞</button><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
+  <header><button id="back">←</button><span class="t" id="title" style="cursor:pointer"></span><button id="wpb">🖼</button><button id="cmenu">⋮</button></header>
   <div id="cdesc"></div>
   <div class="scroll" id="msgs"></div>
   <div id="inl"></div>
@@ -461,20 +461,6 @@ html[data-theme="vkd"] .lbl{color:#8c8e91}
   <button data-s="wk"><i>🎬</i>Клипы</button>
   <button data-s="mn"><i>☰</i>Меню</button>
 </nav>
-
-<div id="inc">
-  <div id="incav"></div>
-  <div class="pname" id="incn"></div>
-  <div class="pstat" id="inck"></div>
-  <div class="rcb" style="margin-top:30px"><button class="btn" style="background:#d13438" id="incno">✕ Отклонить</button><button class="btn" style="background:#2e9e55" id="incyes">✓ Принять</button></div>
-</div>
-
-<div id="cl">
-  <video id="clrv" autoplay playsinline></video>
-  <video id="cllv" autoplay playsinline muted></video>
-  <div id="clinfo"><div id="clav"></div><div class="pname" id="cln"></div><div class="pstat" id="cls">Вызов…</div></div>
-  <div id="clbar"><button id="clmic">🎤</button><button id="clcam">📷</button><button id="clend" style="background:#d13438">📞</button></div>
-</div>
 
 <div id="nt"><div id="ntb">
   <div style="font-size:18px;font-weight:600">📩 Сообщение от администрации</div>
@@ -726,7 +712,7 @@ async function enter(user) {
   accInfo();
   $("sadm").style.display = me.is_admin ? "" : "none"; renderNav();
   show("hm"); ping();
-  await loadChats(); await loadMyChannels(); loadHome(); loadNotices(); subscribeExtras(); checkIncoming();
+  await loadChats(); await loadMyChannels(); loadHome(); loadNotices(); subscribeExtras();
   if (!subscribed) {
     subscribed = true;
     setInterval(ping, 60000);
@@ -767,7 +753,7 @@ function renderList() {
 }
 function renderChat() {
   const c = chats[cur], box = $("msgs"); box.textContent = ""; applyWp();
-  $("title").textContent = cTitle(c); syncAs(); syncSend(); $("giftb").style.display = c.kind === "dm" ? "" : "none"; $("callb").style.display = c.kind === "dm" && !who(c.other).is_bot ? "" : "none";
+  $("title").textContent = cTitle(c); syncAs(); syncSend(); $("giftb").style.display = c.kind === "dm" ? "" : "none";
   $("cdesc").textContent = c.kind === "dm" ? (who(c.other).is_bot ? "бот" : seen(who(c.other).last_seen))
     : (c.kind === "channel" ? "Канал" : "Группа") + (c.handle ? " · @" + c.handle : "") + (c.description ? " · " + c.description : "");
   if (c.kind === "saved") $("cdesc").textContent = "Заметки и файлы только для вас";
@@ -813,7 +799,6 @@ async function send(media) {
   if (media) { row.media_url = media.url; row.media_type = media.type; }
   const {error} = await sb.from("messages").insert(row);
   if (error) { $("text").value = v; alert(error.code === "42501" ? "Не отправлено: вы замучены или заблокированы, либо у вас нет прав писать сюда." : "Не отправлено: " + error.message); }
-  else if (chats[row.chat_id] && chats[row.chat_id].other === AI_ID) askAi(row.chat_id);
 }
 async function attach(e) {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
@@ -1523,19 +1508,6 @@ async function ackNotice() {
 
 /* ---------- боты и API ---------- */
 const MASTER_ID = "00000000-0000-0000-0000-00000000b077";
-const AI_ID = "00000000-0000-0000-0000-00000000a111";
-const aiBusy = {};
-async function askAi(cid) {
-  if (aiBusy[cid]) return;
-  aiBusy[cid] = true;
-  if (cur === cid && scr === "chat") $("cdesc").textContent = "печатает…";
-  try {
-    const r = await sb.functions.invoke("ai-chat", {body: {chat_id: cid}});
-    if (r.error) throw r.error;
-  } catch (e) { alert("ИИ сейчас недоступен: " + (e.message || e)); }
-  aiBusy[cid] = false;
-  if (cur === cid && scr === "chat") renderChat();
-}
 function renderBots() {
   const b = $("botsbox"); b.textContent = "";
   const o = el("button", "btn", "💬 Открыть BotMaster"); o.style.margin = "12px 16px 4px"; o.onclick = () => writeTo(MASTER_ID); b.append(o);
@@ -1594,220 +1566,14 @@ while True:
   -d '{"p_token":"ВАШ_ТОКЕН"}'`);
 }
 
-/* ---------- звонки (WebRTC) ---------- */
-// Для надёжных звонков через мобильный интернет добавьте в этот список свой TURN-сервер
-const ICE = {iceServers: [
-  {urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"]},
-  {urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turns:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject"}
-]};
-let call = null, inc = null, callsSub = false, ringT = null;
-// Metered TURN: впишите имя приложения Metered без «.metered.live» (например, wigram)
-const METERED_APP = "";
-const METERED_KEY = "pk_live_2d6c9a70bb2ca31a69cd3a48e99b4e86d69acf68";
-async function iceConfig() {
-  if (!METERED_APP) return ICE;
-  const base = "https://" + METERED_APP + ".metered.live/api/v1/turn/credentials";
-  const tries = [() => fetch(base + "?apiKey=" + METERED_KEY), () => fetch(base, {headers: {Authorization: "Bearer " + METERED_KEY}})];
-  for (const t of tries) {
-    try {
-      const r = await t();
-      if (!r.ok) continue;
-      const list = await r.json();
-      if (Array.isArray(list) && list.length) return {iceServers: list.concat(ICE.iceServers.slice(0, 1))};
-    } catch (e) {}
-  }
-  return ICE;
-}
-
+/* ---------- подписка на всплывающие сообщения ---------- */
+let extrasSub = false;
 function subscribeExtras() {
-  if (callsSub) return; callsSub = true;
-  setInterval(() => { if (me && !call && !inc) checkIncoming(); }, 4000);
-  sb.channel("calls")
-    .on("postgres_changes", {event: "INSERT", schema: "public", table: "calls"}, p => onCallInsert(p.new))
-    .on("postgres_changes", {event: "UPDATE", schema: "public", table: "calls"}, p => onCallUpdate(p.new))
-    .on("postgres_changes", {event: "INSERT", schema: "public", table: "call_signals"}, p => onSignal(p.new))
-    .subscribe();
+  if (extrasSub) return; extrasSub = true;
   sb.channel("notices")
     .on("postgres_changes", {event: "INSERT", schema: "public", table: "notices"}, p => {
       if (!p.new.to_user || p.new.to_user === me.id) { noticeQ.push(p.new); showNotice(); }
     }).subscribe();
-}
-function ringStart() {
-  ringStop();
-  const f = () => {
-    try { navigator.vibrate && navigator.vibrate([500, 250, 500]); } catch (e) {}
-    try {
-      const ac = ringStart.ac || (ringStart.ac = new (window.AudioContext || window.webkitAudioContext)());
-      const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = 440; g.gain.value = 0.15;
-      o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + 0.4);
-    } catch (e) {}
-  };
-  f(); ringT = setInterval(f, 2000);
-}
-function ringStop() { clearInterval(ringT); ringT = null; try { navigator.vibrate && navigator.vibrate(0); } catch (e) {} }
-
-function openCallUi(status) {
-  const p = who(call.peer);
-  $("clav").textContent = ""; $("clav").append(bigAv(p));
-  $("cln").textContent = p.username + badge(p); $("cls").textContent = status;
-  $("clcam").style.display = call.kind === "video" ? "" : "none";
-  $("clmic").textContent = "🎤"; $("clmic").classList.remove("off"); $("clcam").textContent = "📷"; $("clcam").classList.remove("off");
-  $("cllv").style.display = call.kind === "video" ? "block" : "none";
-  $("cl").style.display = "flex";
-}
-async function getMedia() {
-  call.local = await navigator.mediaDevices.getUserMedia({
-    audio: {echoCancellation: true, noiseSuppression: true},
-    video: call.kind === "video" ? {facingMode: "user"} : false});
-  if (call.kind === "video") { $("cllv").srcObject = call.local; $("cllv").play().catch(() => {}); }
-}
-async function sendSignal(kind, payload) {
-  const {error} = await sb.from("call_signals").insert({call_id: call.id, to_user: call.peer, kind, payload});
-  if (error) { console.warn(error.message); if (call && !call.sigErr) { call.sigErr = 1; $("cls").textContent = "Ошибка связи: " + error.message; } }
-}
-async function makePc() {
-  const cfg = await iceConfig(); if (!call) return;
-  const pc = new RTCPeerConnection(cfg); call.pc = pc;
-  call.local.getTracks().forEach(t => pc.addTrack(t, call.local));
-  pc.ontrack = e => { $("clrv").srcObject = e.streams[0]; $("clrv").play().catch(() => {}); };
-  pc.onicecandidate = e => { if (e.candidate) sendSignal("ice", e.candidate.toJSON()); };
-  pc.oniceconnectionstatechange = () => {
-    if (!call || call.pc !== pc) return;
-    const st = pc.iceConnectionState;
-    if (st === "connected" || st === "completed") callConnected();
-    else if (!call.started) $("cls").textContent = "Соединение… (" + st + ")";
-  };
-  pc.onconnectionstatechange = () => {
-    if (!call || call.pc !== pc) return;
-    if (pc.connectionState === "connected") callConnected();
-    else if (pc.connectionState === "failed") { alert("Не удалось соединиться. Возможно, нужен TURN-сервер (см. раздел звонков в инструкции)."); hangup("failed", true); }
-  };
-  call.poll = setInterval(pollCall, 1500);
-  for (const s of call.queue.splice(0)) await onSignal(s);
-}
-function callConnected() {
-  if (!call || call.started) return;
-  call.started = Date.now(); clearTimeout(call.timeout);
-  $("cls").textContent = "0:00";
-  call.timer = setInterval(() => { if (call) $("cls").textContent = fmtT(Date.now() - call.started); }, 500);
-}
-async function flushIce() {
-  const c = call; if (!c || !c.pc || !c.pc.remoteDescription) return;
-  for (const x of c.ice.splice(0)) { try { await c.pc.addIceCandidate(x); } catch (e) {} }
-}
-async function onSignal(s) {
-  if (!call || s.call_id !== call.id || s.to_user !== me.id) return;
-  if (call.seen.has(s.id)) return;
-  if (!call.pc) { call.queue.push(s); return; }
-  call.seen.add(s.id);
-  const pc = call.pc;
-  try {
-    if (s.kind === "offer") {
-      await pc.setRemoteDescription(s.payload); await flushIce();
-      const a = await pc.createAnswer(); await pc.setLocalDescription(a);
-      await sendSignal("answer", pc.localDescription.toJSON());
-    } else if (s.kind === "answer") { await pc.setRemoteDescription(s.payload); await flushIce(); }
-    else if (s.kind === "ice") { if (pc.remoteDescription) await pc.addIceCandidate(s.payload); else call.ice.push(s.payload); }
-  } catch (e) { console.warn(e); }
-}
-async function startCall(peer, kind) {
-  if (call || inc) { alert("Вы уже в звонке"); return; }
-  if (who(peer).is_bot) { alert("Ботам звонить нельзя"); return; }
-  if (!navigator.mediaDevices || !window.RTCPeerConnection) { alert("Этот браузер не поддерживает звонки"); return; }
-  call = {id: null, kind, peer, role: "caller", queue: [], ice: [], seen: new Set(), ended: false, started: 0};
-  openCallUi("Вызов…");
-  try { await getMedia(); }
-  catch (e) { const c = call; call = null; cleanupCall(c); alert("Нет доступа к микрофону" + (kind === "video" ? " или камере" : "") + ". Разрешите его в настройках браузера."); return; }
-  const {data, error} = await sb.from("calls").insert({callee_id: peer, kind}).select().single();
-  if (error) { const c = call; call = null; cleanupCall(c); alert("Не удалось позвонить: " + error.message); return; }
-  call.id = data.id;
-  await makePc();
-  if (!call || !call.pc) return;
-  const offer = await call.pc.createOffer(); await call.pc.setLocalDescription(offer);
-  await sendSignal("offer", call.pc.localDescription.toJSON());
-  call.timeout = setTimeout(() => { if (call && !call.started) hangup("missed", true); }, 45000);
-}
-function cleanupCall(c) {
-  clearTimeout(c.timeout); clearInterval(c.timer); clearInterval(c.poll);
-  try { c.local && c.local.getTracks().forEach(t => t.stop()); } catch (e) {}
-  try { c.pc && c.pc.close(); } catch (e) {}
-  $("cl").style.display = "none"; $("clrv").srcObject = null; $("cllv").srcObject = null;
-}
-async function hangup(reason, notify) {
-  const c = call; if (!c || c.ended) return;
-  c.ended = true; call = null; cleanupCall(c);
-  const dur = c.started ? Date.now() - c.started : 0;
-  if (c.id && notify) {
-    const status = reason === "declined" ? "declined" : reason === "missed" ? "missed" : "ended";
-    await sb.from("calls").update({status, ended_at: new Date().toISOString()}).eq("id", c.id);
-  }
-  if (c.id) { try { await sb.from("call_signals").delete().eq("call_id", c.id); } catch (e) {} }
-  if (c.role === "caller" && c.id && reason !== "failed") {
-    const txt = reason === "missed" ? "📞 Пропущенный звонок" : reason === "declined" ? "📞 Звонок отклонён" : reason === "busy" ? "📞 Абонент занят"
-      : dur ? (c.kind === "video" ? "📹 Видеозвонок · " : "📞 Звонок · ") + fmtT(dur) : "📞 Отменённый звонок";
-    try {
-      const d = await sb.rpc("get_dm", {other: c.peer});
-      if (d.data) await sb.from("messages").insert({chat_id: d.data, user_id: me.id, text: txt});
-    } catch (e) {}
-  }
-}
-async function pollCall() {
-  const c = call; if (!c || !c.id || c.polling) return;
-  c.polling = true;
-  try {
-    if (!c.started) {
-      const {data} = await sb.from("call_signals").select("*").eq("call_id", c.id).eq("to_user", me.id).order("id", {ascending: true});
-      for (const s of data || []) await onSignal(s);
-    }
-    const r = await sb.from("calls").select("status").eq("id", c.id).maybeSingle();
-    if (r.data && call === c && ["declined", "missed", "ended", "busy"].includes(r.data.status)) hangup(r.data.status, false);
-  } catch (e) {}
-  c.polling = false;
-}
-function onCallInsert(c) { if (c.callee_id === me.id && c.status === "ringing") incoming(c); }
-const seenCalls = new Set();
-async function incoming(c) {
-  if (seenCalls.has(c.id)) return; seenCalls.add(c.id);
-  if (call || inc) { await sb.from("calls").update({status: "busy", ended_at: new Date().toISOString()}).eq("id", c.id); return; }
-  await loadProfiles([c.caller_id]);
-  const p = who(c.caller_id);
-  inc = {c, t: setTimeout(closeIncoming, 45000)};
-  $("incav").textContent = ""; $("incav").append(bigAv(p));
-  $("incn").textContent = p.username + badge(p);
-  $("inck").textContent = c.kind === "video" ? "Входящий видеозвонок" : "Входящий звонок";
-  $("inc").style.display = "flex"; ringStart();
-}
-function closeIncoming() { if (inc) clearTimeout(inc.t); inc = null; ringStop(); $("inc").style.display = "none"; }
-async function checkIncoming() {
-  const since = new Date(Date.now() - 40000).toISOString();
-  const {data} = await sb.from("calls").select("*").eq("callee_id", me.id).eq("status", "ringing").gt("created_at", since).limit(1);
-  if (data && data.length) incoming(data[0]);
-}
-async function acceptCall() {
-  if (!inc) return;
-  const c = inc.c; closeIncoming();
-  call = {id: c.id, kind: c.kind, peer: c.caller_id, role: "callee", queue: [], ice: [], seen: new Set(), ended: false, started: 0};
-  openCallUi("Соединение…");
-  try { await getMedia(); }
-  catch (e) {
-    const cc = call; call = null; cleanupCall(cc);
-    await sb.from("calls").update({status: "declined", ended_at: new Date().toISOString()}).eq("id", c.id);
-    alert("Нет доступа к микрофону" + (c.kind === "video" ? " или камере" : "") + ". Разрешите его в настройках браузера."); return;
-  }
-  await sb.from("calls").update({status: "accepted", answered_at: new Date().toISOString()}).eq("id", c.id);
-  await makePc();
-  const {data} = await sb.from("call_signals").select("*").eq("call_id", c.id).eq("to_user", me.id).order("id", {ascending: true});
-  for (const s of data || []) await onSignal(s);
-  call && (call.timeout = setTimeout(() => { if (call && !call.started) { alert("Не удалось соединиться. Скорее всего, нужен TURN-сервер (инструкция в чате)."); hangup("failed", true); } }, 40000));
-}
-async function declineCall() {
-  if (!inc) return;
-  const c = inc.c; closeIncoming();
-  await sb.from("calls").update({status: "declined", ended_at: new Date().toISOString()}).eq("id", c.id);
-}
-function onCallUpdate(c) {
-  if (inc && inc.c.id === c.id && c.status !== "ringing") closeIncoming();
-  if (call && call.id === c.id && ["declined", "missed", "ended", "busy"].includes(c.status)) hangup(c.status, false);
 }
 
 /* ---------- инлайн-боты: «@бот запрос» ---------- */
@@ -2180,7 +1946,7 @@ async function buildProfile(b, p, isMe) {
     acts.append(actBtn("💬", "Написать", () => writeTo(uid)));
     if (!p.is_bot) { const fb = actBtn("👤", "…", () => {}); acts.append(fb); friendState(uid).then(f => friendBtn(fb, uid, f)); }
     acts.append(actBtn("🎁", "Подарок", () => openGifts(uid)));
-    if (!p.is_bot) acts.append(actBtn("📞", "Звонок", () => startCall(uid, "audio")));
+    
     b.append(acts);
   }
   b.append(infRow("Имя пользователя", "@" + p.handle));
@@ -2388,7 +2154,7 @@ function renderMenu() {
     ["#e040fb", "🎵", "Музыка", () => alert("Музыка скоро появится")], ["#ff2d55", "▶️", "Видео", () => { show("wt"); loadFeed(); }],
     ["#5181b8", "📇", "Контакты", () => { show("ct"); loadContacts(); }], ["#23c37a", "🔖", "Закладки", openSaved],
     ["#f5a623", "⭐", "Звёзды", openShop], ["#6c5ce7", "🤖", "Боты", () => { show("bots"); renderBots(); }],
-    ["#00b7c3", "🔁", "Аккаунты", () => { show("acc"); renderAcc(); }], ["#e84393", "🎨", "Тема", themeMenu], ["#4d6bfe", "🐋", "DeepSeek", () => writeTo(AI_ID)],
+    ["#00b7c3", "🔁", "Аккаунты", () => { show("acc"); renderAcc(); }], ["#e84393", "🎨", "Тема", themeMenu],
     ["#818c99", "⚙️", "Настройки", () => show("set")]];
   if (me.is_admin) items.push(["#d13438", "🛡", "Админ", openAdmin]);
   items.forEach(([bg, ic, name, fn]) => {
@@ -2440,11 +2206,6 @@ $("pmfile").onchange = e => {
 $("pmdel").onclick = () => { pMusic = null; pMFile = null; $("pmtitle").value = ""; $("pmstat").textContent = "Музыка будет убрана после «Сохранить»"; };
 $("sbots").onclick = () => { show("bots"); renderBots(); }; $("botsback").onclick = () => show("set");
 $("ntok").onclick = ackNotice;
-$("callb").onclick = () => startCall(chats[cur].other, "audio");
-$("incyes").onclick = acceptCall; $("incno").onclick = declineCall;
-$("clend").onclick = () => hangup("ended", true);
-$("clmic").onclick = () => { if (!call || !call.local) return; call.muted = !call.muted; call.local.getAudioTracks().forEach(t => t.enabled = !call.muted); $("clmic").textContent = call.muted ? "🔇" : "🎤"; $("clmic").classList.toggle("off", !!call.muted); };
-$("clcam").onclick = () => { if (!call || !call.local) return; call.camOff = !call.camOff; call.local.getVideoTracks().forEach(t => t.enabled = !call.camOff); $("clcam").textContent = call.camOff ? "🚫" : "📷"; $("clcam").classList.toggle("off", !!call.camOff); };
 $("wtnew").onclick = () => { wtShort = false; $("wtuptitle").textContent = "Загрузить видео"; wtFile = null; wtMeta = null; $("wttitle").value = ""; $("wtdesc").value = ""; $("wtprev").textContent = ""; $("wterr").textContent = ""; show("wtup"); };
 $("wtupback").onclick = () => show(wtShort ? "wk" : "wt"); $("wtpick").onclick = () => $("wtfile").click(); $("wtfile").onchange = wtPicked; $("wtpub").onclick = wtPublish;
 $("wtvback").onclick = () => { const v = document.querySelector("#wtvbox video"); if (v) v.pause(); show("wt"); };
