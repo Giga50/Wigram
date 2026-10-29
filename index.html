@@ -191,6 +191,11 @@ html[data-theme="vkd"] .lbl{color:#8c8e91}
 .mng{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 6px;padding:14px 8px}
 .mnt{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;text-align:center;cursor:pointer}
 .mni{width:56px;height:56px;border-radius:14px!important;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff}
+#wmbar{display:none;flex:none;background:var(--bg);border-top:1px solid var(--line)}
+#wmprog{height:4px;background:var(--line);cursor:pointer}#wmfill{height:100%;width:0;background:var(--acc)}
+.wmrow{display:flex;gap:8px;align-items:center;padding:6px 10px}
+.wmrow button{background:none;border:0;color:var(--text);font-size:20px;padding:4px 8px}
+#wmti{min-width:0}#wmti b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -435,6 +440,29 @@ html[data-theme="vkd"] .lbl{color:#8c8e91}
   </div></div>
 </div>
 
+<div class="screen" id="wm">
+  <header><button id="wmback">←</button><span class="t">WiMusic</span><button id="wmnew">＋</button></header>
+  <div class="tabs"><button id="wmt1" class="on">Моя музыка</button><button id="wmt2">Все треки</button></div>
+  <div style="padding:10px"><input id="wmq" autocomplete="off" placeholder="Поиск: название или исполнитель" style="width:100%"></div>
+  <div class="scroll" id="wmlist"></div>
+</div>
+
+<div class="screen" id="wmup">
+  <header><button id="wmupback">←</button><span class="t">Загрузить трек</span></header>
+  <div class="scroll"><div class="form">
+    <button class="btn" id="wmpick">Выбрать аудиофайл</button>
+    <input type="file" id="wmfile" accept="audio/*" style="display:none">
+    <div id="wmprev2" class="lbl"></div>
+    <input id="wmtitle" autocomplete="off" maxlength="100" placeholder="Название">
+    <input id="wmartist" autocomplete="off" maxlength="100" placeholder="Исполнитель">
+    <button class="btn g" id="wmcpick">Обложка (необязательно)</button>
+    <input type="file" id="wmcfile" accept="image/*" style="display:none">
+    <div class="err" id="wmerr"></div>
+    <button class="btn" id="wmpub">Опубликовать</button>
+    <div class="lbl">Загружайте только то, на что у вас есть права: свою музыку или лицензионные треки. До 20 МБ на файл.</div>
+  </div></div>
+</div>
+
 <div class="screen" id="bots">
   <header><button id="botsback">←</button><span class="t">Боты и API</span></header>
   <div class="scroll" id="botsbox"></div>
@@ -454,6 +482,10 @@ html[data-theme="vkd"] .lbl{color:#8c8e91}
   </div></div>
 </div>
 
+<div id="wmbar">
+  <div id="wmprog"><div id="wmfill"></div></div>
+  <div class="wmrow"><div class="av s" id="wmcv"></div><div class="rt" id="wmti"></div><button id="wmprev">⏮</button><button id="wmpp">▶</button><button id="wmnext">⏭</button></div>
+</div>
 <nav id="nav">
   <button data-s="hm"><i>🏠</i>Главная</button>
   <button data-s="fd"><i>🔍</i>Поиск</button>
@@ -528,8 +560,9 @@ function show(id) {
   prevScr = scr; scr = id;
   document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
   if (id !== "wk" && typeof wkPauseAll === "function") wkPauseAll();
-  $("nav").style.display = ["hm", "fd", "list", "wk", "mn", "wt", "ct", "set", "mp", "fr", "usr"].includes(id) ? "flex" : "none";
-  document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x.dataset.s === ({wt: "mn", set: "mn", mp: "mn", fr: "mn", ct: "mn", usr: "mn"}[id] || id)));
+  const navOn = ["hm", "fd", "list", "wk", "mn", "wt", "wm", "ct", "set", "mp", "fr", "usr"].includes(id);
+  $("nav").style.display = navOn ? "flex" : "none"; wmBarShow(navOn);
+  document.querySelectorAll("#nav button").forEach(x => x.classList.toggle("on", x.dataset.s === ({wt: "mn", wm: "mn", set: "mn", mp: "mn", fr: "mn", ct: "mn", usr: "mn"}[id] || id)));
 }
 const who = id => prof[id] || {username: "…", avatar: "👤"};
 const PREM = "👑 💎 🦄 🐉 🔮 🌟 🎭 🪐 🦋 🦅 🐺 🌙".split(" ");
@@ -2151,7 +2184,7 @@ function renderMenu() {
   const g = $("mng"); g.textContent = "";
   const items = [
     ["#ff5a3c", "👥", "Друзья", () => openFriends(me.id)], ["#ff9500", "👪", "Сообщества", communities],
-    ["#e040fb", "🎵", "Музыка", () => alert("Музыка скоро появится")], ["#ff2d55", "▶️", "Видео", () => { show("wt"); loadFeed(); }],
+    ["#e040fb", "🎵", "WiMusic", openMusic], ["#ff2d55", "▶️", "Видео", () => { show("wt"); loadFeed(); }],
     ["#5181b8", "📇", "Контакты", () => { show("ct"); loadContacts(); }], ["#23c37a", "🔖", "Закладки", openSaved],
     ["#f5a623", "⭐", "Звёзды", openShop], ["#6c5ce7", "🤖", "Боты", () => { show("bots"); renderBots(); }],
     ["#00b7c3", "🔁", "Аккаунты", () => { show("acc"); renderAcc(); }], ["#e84393", "🎨", "Тема", themeMenu],
@@ -2161,6 +2194,137 @@ function renderMenu() {
     const t = el("div", "mnt"), i = el("div", "mni", ic); i.style.background = bg;
     t.append(i, el("span", "", name)); t.onclick = fn; g.append(t);
   });
+}
+
+/* ---------- WiMusic ---------- */
+const wmAudio = new Audio();
+wmAudio.preload = "none";
+let wmQueue = [], wmIdx = -1, wmTab = "my", wmLib = new Set(), wmTimer = null, wmFile = null, wmCoverFile = null, wmDur = 0;
+const wmCur = () => wmQueue[wmIdx] || null;
+function wmBarShow(on) { $("wmbar").style.display = on && wmCur() ? "block" : "none"; }
+function wmCoverEl(t, small) {
+  const d = el("div", "av" + (small ? " s" : ""));
+  if (t.cover_url) { const i = el("img"); i.src = t.cover_url; d.append(i); } else d.textContent = "🎵";
+  return d;
+}
+function wmUi() {
+  const t = wmCur(); if (!t) return;
+  $("wmcv").replaceWith(Object.assign(wmCoverEl(t, true), {id: "wmcv"}));
+  $("wmti").textContent = ""; $("wmti").append(el("b", "", t.title), el("div", "lbl", t.artist || "Неизвестный исполнитель"));
+  $("wmpp").textContent = wmAudio.paused ? "▶" : "⏸";
+  wmBarShow(["hm", "fd", "list", "wk", "mn", "wt", "wm", "ct", "set", "mp", "fr", "usr"].includes(scr));
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({title: t.title, artist: t.artist || "", artwork: t.cover_url ? [{src: t.cover_url, sizes: "400x400", type: "image/jpeg"}] : []});
+    navigator.mediaSession.setActionHandler("play", () => wmAudio.play());
+    navigator.mediaSession.setActionHandler("pause", () => wmAudio.pause());
+    navigator.mediaSession.setActionHandler("previoustrack", wmPrev);
+    navigator.mediaSession.setActionHandler("nexttrack", wmNext);
+  }
+}
+function wmStart() {
+  const t = wmCur(); if (!t) return;
+  wmAudio.src = t.audio_url; wmAudio.play().catch(() => {});
+  sb.rpc("wm_play", {p_id: t.id}).then(() => {});
+  wmUi();
+}
+function wmPlay(list, i) { wmQueue = list; wmIdx = i; wmStart(); }
+function wmNext() { if (wmIdx < wmQueue.length - 1) { wmIdx++; wmStart(); } else wmAudio.pause(); }
+function wmPrev() { if (wmAudio.currentTime > 3 || wmIdx <= 0) wmAudio.currentTime = 0; else { wmIdx--; wmStart(); } }
+wmAudio.onended = wmNext;
+wmAudio.onplay = wmAudio.onpause = () => { $("wmpp").textContent = wmAudio.paused ? "▶" : "⏸"; };
+wmAudio.ontimeupdate = () => { $("wmfill").style.width = (wmAudio.duration ? wmAudio.currentTime / wmAudio.duration * 100 : 0) + "%"; };
+
+async function openMusic() { show("wm"); await wmLoadLib(); wmLoad(); }
+async function wmLoadLib() {
+  const r = await sb.from("wm_library").select("track_id").eq("user_id", me.id);
+  wmLib = new Set((r.data || []).map(x => x.track_id));
+}
+async function wmLoad() {
+  const box = $("wmlist"); box.textContent = ""; box.append(el("div", "lbl", "  Загрузка…"));
+  const q = $("wmq").value.trim().replace(/[,()%*]/g, "");
+  let list = [], error = null;
+  if (wmTab === "my") {
+    const r = await sb.from("wm_library").select("added_at, wm_tracks(*)").eq("user_id", me.id).order("added_at", {ascending: false}).limit(300);
+    error = r.error; list = (r.data || []).map(x => x.wm_tracks).filter(Boolean);
+    if (q) list = list.filter(t => (t.title + " " + t.artist).toLowerCase().includes(q.toLowerCase()));
+  } else {
+    let qq = sb.from("wm_tracks").select("*").order("created_at", {ascending: false}).limit(100);
+    if (q) qq = qq.or("title.ilike.%" + q + "%,artist.ilike.%" + q + "%");
+    const r = await qq; error = r.error; list = r.data || [];
+  }
+  box.textContent = "";
+  if (error) { box.append(el("div", "empty", "WiMusic ещё не настроен: запустите wimusic.sql в Supabase")); return; }
+  if (!list.length) { box.append(el("div", "empty", wmTab === "my" ? "В вашей музыке пока пусто. Откройте «Все треки» и добавьте понравившиеся или загрузите свой кнопкой ＋" : "Треков пока нет. Загрузите первый кнопкой ＋")); return; }
+  list.forEach((t, i) => {
+    const r = el("div", "row"), rt = el("div", "rt"), b = el("b");
+    b.append(el("span", "", t.title), el("i", "", t.duration ? fmtDur(t.duration) : ""));
+    rt.append(b, el("div", "", (t.artist || "Неизвестный исполнитель") + " · " + t.plays + " прослуш."));
+    const more = el("button", "btn s g", "⋮"); more.onclick = ev => { ev.stopPropagation(); wmMenu(t); };
+    r.append(wmCoverEl(t), rt, more); r.onclick = () => wmPlay(list, i); box.append(r);
+  });
+}
+function wmMenu(t) {
+  const b = $("msb"); b.textContent = "";
+  b.append(el("div", "lbl", t.title + (t.artist ? " — " + t.artist : "")));
+  const add = (txt, fn) => { const x = el("button", "btn g", txt); x.onclick = () => { $("ms").style.display = "none"; fn(); }; b.append(x); };
+  add(wmLib.has(t.id) ? "➖ Убрать из моей музыки" : "➕ Добавить в мою музыку", async () => {
+    const r = wmLib.has(t.id) ? await sb.from("wm_library").delete().eq("user_id", me.id).eq("track_id", t.id) : await sb.from("wm_library").insert({user_id: me.id, track_id: t.id});
+    if (r.error) { alert(r.error.message); return; }
+    if (wmLib.has(t.id)) wmLib.delete(t.id); else wmLib.add(t.id);
+    wmLoad();
+  });
+  add("🎵 Поставить в профиль", async () => {
+    const r = await sb.from("profiles").update({music_url: t.audio_url, music_title: ((t.artist ? t.artist + " — " : "") + t.title).slice(0, 60)}).eq("id", me.id);
+    if (r.error) { alert(r.error.message); return; }
+    me.music_url = t.audio_url; me.music_title = ((t.artist ? t.artist + " — " : "") + t.title).slice(0, 60); alert("Трек теперь звучит в вашем профиле");
+  });
+  if (t.user_id === me.id || me.is_admin) add("🗑 Удалить трек", async () => {
+    if (!confirm("Удалить трек у всех?")) return;
+    const r = await sb.from("wm_tracks").delete().eq("id", t.id);
+    if (r.error) { alert(r.error.message); return; }
+    if (wmCur() && wmCur().id === t.id) { wmAudio.pause(); wmQueue = []; wmIdx = -1; wmBarShow(false); }
+    wmLoad();
+  });
+  const c = el("button", "btn", "Закрыть"); c.onclick = () => { $("ms").style.display = "none"; }; b.append(c);
+  $("ms").style.display = "flex";
+}
+async function wmPicked(e) {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  $("wmerr").textContent = "";
+  if (!f.type.startsWith("audio/")) { $("wmerr").textContent = "Выберите аудиофайл"; return; }
+  if (f.size > 20 * 1024 * 1024) { $("wmerr").textContent = "Файл больше 20 МБ"; return; }
+  wmFile = f; wmDur = 0;
+  const base = f.name.replace(/\.[^.]+$/, ""), parts = base.split(" - ");
+  if (!$("wmtitle").value) $("wmtitle").value = (parts.length > 1 ? parts.slice(1).join(" - ") : base).slice(0, 100);
+  if (!$("wmartist").value && parts.length > 1) $("wmartist").value = parts[0].slice(0, 100);
+  $("wmprev2").textContent = f.name + " · " + (f.size / 1048576).toFixed(1) + " МБ";
+  const a = new Audio(URL.createObjectURL(f));
+  a.onloadedmetadata = () => { wmDur = Math.round(a.duration) || 0; $("wmprev2").textContent += wmDur ? " · " + fmtDur(wmDur) : ""; URL.revokeObjectURL(a.src); };
+}
+async function wmPublish() {
+  $("wmerr").textContent = "";
+  const title = $("wmtitle").value.trim();
+  if (!wmFile) { $("wmerr").textContent = "Сначала выберите аудиофайл"; return; }
+  if (!title) { $("wmerr").textContent = "Введите название"; return; }
+  const btn = $("wmpub"); btn.disabled = true; btn.textContent = "Загрузка…";
+  try {
+    const id = crypto.randomUUID(), ext = (wmFile.name.split(".").pop() || "mp3").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "mp3";
+    const path = me.id + "/wm-" + id + "." + ext;
+    const up = await sb.storage.from("media").upload(path, wmFile, {contentType: wmFile.type || "audio/mpeg"});
+    if (up.error) throw up.error;
+    let cover = null;
+    if (wmCoverFile) {
+      const cp = me.id + "/wm-" + id + ".jpg", cu = await sb.storage.from("media").upload(cp, await shrink(wmCoverFile, 400, true), {contentType: "image/jpeg"});
+      if (!cu.error) cover = sb.storage.from("media").getPublicUrl(cp).data.publicUrl;
+    }
+    const {data, error} = await sb.from("wm_tracks").insert({user_id: me.id, title, artist: $("wmartist").value.trim(),
+      audio_url: sb.storage.from("media").getPublicUrl(path).data.publicUrl, cover_url: cover, duration: wmDur || null}).select().single();
+    if (error) throw error;
+    await sb.from("wm_library").insert({user_id: me.id, track_id: data.id});
+    wmFile = null; wmCoverFile = null; wmTab = "my"; $("wmt1").classList.add("on"); $("wmt2").classList.remove("on");
+    openMusic();
+  } catch (x) { $("wmerr").textContent = "Не удалось опубликовать: " + (x.message || x); }
+  btn.disabled = false; btn.textContent = "Опубликовать";
 }
 
 /* ---------- запуск ---------- */
@@ -2239,6 +2403,18 @@ $("covfile").onchange = async e => {
     me.cover_url = url; prof[me.id] = me; renderMp();
   } catch (x) { alert(x.message); }
 };
+$("wmback").onclick = () => show("mn");
+$("wmt1").onclick = () => { wmTab = "my"; $("wmt1").classList.add("on"); $("wmt2").classList.remove("on"); wmLoad(); };
+$("wmt2").onclick = () => { wmTab = "all"; $("wmt2").classList.add("on"); $("wmt1").classList.remove("on"); wmLoad(); };
+$("wmq").oninput = () => { clearTimeout(wmTimer); wmTimer = setTimeout(wmLoad, 400); };
+$("wmnew").onclick = () => { wmFile = null; wmCoverFile = null; wmDur = 0; ["wmtitle", "wmartist"].forEach(i => $(i).value = ""); $("wmprev2").textContent = ""; $("wmerr").textContent = ""; show("wmup"); };
+$("wmupback").onclick = () => show("wm"); $("wmpick").onclick = () => $("wmfile").click(); $("wmfile").onchange = wmPicked;
+$("wmcpick").onclick = () => $("wmcfile").click();
+$("wmcfile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) { wmCoverFile = f; $("wmcpick").textContent = "Обложка: " + f.name.slice(0, 24); } };
+$("wmpub").onclick = wmPublish;
+$("wmpp").onclick = () => { if (wmAudio.paused) wmAudio.play().catch(() => {}); else wmAudio.pause(); };
+$("wmprev").onclick = wmPrev; $("wmnext").onclick = wmNext;
+$("wmprog").onclick = e => { if (wmAudio.duration) wmAudio.currentTime = wmAudio.duration * (e.offsetX / e.currentTarget.clientWidth); };
 $("cgo").onclick = loadContacts; $("cq").onkeydown = e => { if (e.key === "Enter") loadContacts(); };
 $("mpfile").onchange = async e => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
