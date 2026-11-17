@@ -563,6 +563,7 @@ let cm = null, ccount = {}, cleared = {}, adding = false, pStyle = "classic", pM
 
 const hm = t => new Date(t).toLocaleTimeString("ru-RU", {hour: "2-digit", minute: "2-digit"});
 function show(id) {
+  if (id !== "wk" && typeof wkPauseAll === "function") wkPauseAll();
   prevScr = scr; scr = id;
   document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id));
   if (id !== "wk" && typeof wkPauseAll === "function") wkPauseAll();
@@ -2249,6 +2250,13 @@ function renderMenu() {
 
 /* ---------- WiMusic ---------- */
 const wmAudio = new Audio();
+/* только один источник звука за раз: видео, голосовые и музыка не перебивают друг друга */
+document.addEventListener("play", e => {
+  const t = e.target; if (!(t instanceof HTMLMediaElement) || t.muted) return;
+  document.querySelectorAll("video,audio").forEach(m => { if (m !== t && !m.paused && !m.muted) m.pause(); });
+  if (!wmAudio.paused) wmAudio.pause();
+}, true);
+wmAudio.addEventListener("play", () => document.querySelectorAll("video,audio").forEach(m => { if (!m.paused && !m.muted) m.pause(); }));
 wmAudio.preload = "none";
 let wmQueue = [], wmIdx = -1, wmTab = "my", wmLib = new Set(), wmTimer = null, wmFile = null, wmCoverFile = null, wmDur = 0;
 const wmCur = () => wmQueue[wmIdx] || null;
