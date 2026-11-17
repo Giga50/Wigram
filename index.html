@@ -515,6 +515,12 @@ html[data-theme="vkd"] .lbl{color:#8c8e91}
   <div id="svc"></div>
 </div>
 
+<script>
+setTimeout(function(){var b=document.getElementById("boot");if(!b||!b.classList.contains("on"))return;
+var why=typeof supabase==="undefined"?"Не загрузилась библиотека Supabase (cdn.jsdelivr.net). Попробуйте другую сеть или VPN.":"Сервер не отвечает. Возможно, Supabase ещё запускается.";
+b.innerHTML='<div class="empty" style="padding:24px"><p>'+why+'</p><p><button style="padding:10px 16px" onclick="location.reload()">Повторить</button> <button style="padding:10px 16px" id="wgreset">Сбросить вход</button></p></div>';
+document.getElementById("wgreset").onclick=function(){try{localStorage.removeItem("messenger-auth");localStorage.removeItem("msg_bk")}catch(e){}location.reload()}},12000);
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 const SUPABASE_URL = "https://fwkcgyxmgzsixjgmpnut.supabase.co";
@@ -592,7 +598,7 @@ function cAv(c, small) {
   return d;
 }
 const cTitle = c => c.kind === "dm" ? who(c.other).username + badge(who(c.other)) : c.title;
-const prev = m => m.text || ({video: "🎬 Видео", audio: "🎤 Голосовое", round: "⭕ Кружок"}[m.media_type] || "📷 Фото");
+const prev = m => (m.text ? (/^\[\[wt:/.test(m.text) ? "▶ Репост видео" : /^\[\[wc:/.test(m.text) ? "💬 Репост комментария" : m.text) : "") || ({video: "🎬 Видео", audio: "🎤 Голосовое", round: "⭕ Кружок"}[m.media_type] || "📷 Фото");
 function grid(box, get, set) {
   box.textContent = "";
   avList().forEach(a => { const d = el("div", a === get() ? "sel" : "", a); d.onclick = () => { set(a); grid(box, get, set); }; box.appendChild(d); });
@@ -805,7 +811,8 @@ function renderChat() {
       else if (m.media_type === "round") { const v = el("video"); v.src = m.media_url; v.className = "round"; v.playsInline = true; v.preload = "metadata"; v.loop = true; v.onclick = () => { if (v.paused) v.play(); else v.pause(); }; d.append(v); }
       else { const i = el("img"); i.src = m.media_url; i.onclick = () => window.open(m.media_url, "_blank"); d.append(i); }
     }
-    if (m.text) d.append(el("span", "", m.text));
+    if (m.text && /^\[\[(wt|wc):[^\]]+\]\]$/.test(m.text.trim())) d.append(repostCard(m.text.trim()));
+    else if (m.text) d.append(el("span", "", m.text));
     const canManage = true;
     const tm = el("time", canManage ? "mt" : "", (m.edited ? "изм. " : "") + hm(m.created_at) + (canManage ? "  ⋯" : ""));
     if (canManage) tm.onclick = () => msgMenu(m);
@@ -1721,6 +1728,7 @@ async function openVideo(v) {
     };
     bar.append(del);
   }
+  const rpb = el("button", "", "↗ Репост"); rpb.onclick = () => pickChat(id => shareToChat(id, "[[wt:" + v.id + "]]")); bar.append(rpb);
   b.append(bar);
   const ch = el("div", "wti"), rt = el("div", "rt"); rt.append(el("b", "", p.username + badge(p)), el("div", "", "Автор · подписчиков: " + (st.subs || 0)));
   ch.append(avEl(p, true), rt); ch.style.cursor = "pointer"; ch.onclick = () => openUser(v.user_id); b.append(ch);
@@ -1728,6 +1736,46 @@ async function openVideo(v) {
   b.append(el("div", "lbl", "  Комментарии: " + (st.comments || 0)));
   const cbox = el("div"); cbox.id = "wtcbox"; b.append(cbox);
   loadWtComments();
+}
+
+/* ---------- репосты видео и комментариев в чаты ---------- */
+function pickChat(cb) {
+  const b = $("msb"); b.textContent = "";
+  b.append(el("div", "lbl", "Куда отправить репост"));
+  [...mem].map(id => chats[id]).filter(Boolean).forEach(c => {
+    const x = el("button", "btn g", cTitle(c)); x.onclick = () => { closeMenu(); cb(c.id); }; b.append(x);
+  });
+  const cn = el("button", "btn g", "Отмена"); cn.onclick = closeMenu; b.append(cn); $("ms").style.display = "flex";
+}
+async function shareToChat(chatId, text) {
+  const {error} = await sb.from("messages").insert({chat_id: chatId, user_id: me.id, text});
+  if (error) alert(error.code === "42501" ? "Не отправлено: нет прав писать в этот чат." : "Не отправлено: " + error.message);
+  else alert("Репост отправлен");
+}
+function repostCard(tok) {
+  const mt = /^\[\[(wt|wc):([^\]]+)\]\]$/.exec(tok), box = el("div", "rpc");
+  box.style.cssText = "min-width:200px;max-width:100%"; box.textContent = "Загрузка…";
+  (async () => {
+    try {
+      let cm = null, v = null;
+      if (mt[1] === "wc") {
+        cm = (await sb.from("wt_comments").select("*").eq("id", mt[2]).maybeSingle()).data; if (!cm) throw 0;
+        v = (await sb.from("wt_videos").select("*").eq("id", cm.video_id).maybeSingle()).data;
+      } else v = (await sb.from("wt_videos").select("*").eq("id", mt[2]).maybeSingle()).data;
+      if (!v) throw 0;
+      await loadProfiles([v.user_id].concat(cm ? [cm.user_id] : []));
+      box.textContent = "";
+      if (cm) {
+        const p = who(cm.user_id), q = el("div"); q.style.cssText = "border-left:3px solid #5181b8;padding:4px 8px;margin-bottom:6px";
+        const t = el("div", "", cm.text); t.style.whiteSpace = "pre-wrap"; q.append(el("b", "", p.username + badge(p)), t); box.append(q);
+      }
+      const vid = el("video"); vid.src = v.video_url; vid.controls = true; vid.playsInline = true; vid.preload = "none";
+      if (v.thumb_url) vid.poster = v.thumb_url; vid.style.cssText = "width:100%;max-height:50vh;background:#000;display:block;border-radius:6px";
+      const ob = el("button", "btn s g", "▶ Открыть в WiTube · " + v.title); ob.onclick = () => openVideo(v);
+      box.append(vid, ob);
+    } catch (e) { box.textContent = "Видео недоступно"; }
+  })();
+  return box;
 }
 async function loadWtComments() {
   const v = wtVid, box = $("wtcbox"); if (!box) return;
@@ -1739,6 +1787,7 @@ async function loadWtComments() {
     b.append(el("span", "", p.username + badge(p)), el("i", "", ago(m.created_at))); rt.append(b, el("div", "", m.text));
     rt.lastChild.style.cssText = "white-space:pre-wrap;color:var(--text)";
     const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p, true), rt);
+    const rcb = el("button", "btn s g", "↗"); rcb.onclick = () => pickChat(id => shareToChat(id, "[[wc:" + m.id + "]]")); r.append(rcb);
     if (m.user_id === me.id || me.is_admin || v.user_id === me.id) {
       const x = el("button", "btn s g", "✕");
       x.onclick = async () => { const d = await sb.from("wt_comments").delete().eq("id", m.id); if (d.error) alert(d.error.message); else loadWtComments(); };
@@ -1886,7 +1935,8 @@ function wkCard(v, st) {
   const av = avEl(p, true); av.classList.add("pav"); av.style.cursor = "pointer"; av.onclick = () => openUser(v.user_id);
   const lk = wkBtn(st.liked ? "❤️" : "🤍", st.likes); c._lk = lk; lk.onclick = () => wkLike(v, st, lk);
   const cm = wkBtn("💬", st.comments); cm.onclick = () => openWkComments(v, cm);
-  side.append(av, lk, cm);
+  const rpw = wkBtn("↗", ""); rpw.onclick = () => pickChat(id => shareToChat(id, "[[wt:" + v.id + "]]"));
+  side.append(av, lk, cm, rpw);
   if (v.user_id !== me.id) {
     const sn = wkBtn(st.subscribed ? "✅" : "➕", "");
     sn.onclick = async () => {
@@ -1923,6 +1973,7 @@ async function wkLoadComments() {
     b.append(el("span", "", p.username + badge(p)), el("i", "", ago(m.created_at))); rt.append(b, el("div", "", m.text));
     rt.lastChild.style.cssText = "white-space:pre-wrap;color:var(--text)";
     const r = el("div", "row"); r.style.cursor = "default"; r.append(avEl(p, true), rt);
+    const rcb = el("button", "btn s g", "↗"); rcb.onclick = () => pickChat(id => shareToChat(id, "[[wc:" + m.id + "]]")); r.append(rcb);
     if (m.user_id === me.id || me.is_admin || v.user_id === me.id) {
       const x = el("button", "btn s g", "✕");
       x.onclick = async () => { const d = await sb.from(wkCur.tbl || "wt_comments").delete().eq("id", m.id); if (d.error) alert(d.error.message); else wkLoadComments(); };
@@ -2446,18 +2497,19 @@ sb.auth.onAuthStateChange((ev, ses) => {
     else if (ev === "SIGNED_OUT") { localStorage.removeItem("msg_bk"); if (me && !loggingOut) location.reload(); }
   } catch (e) {}
 });
+const tmo = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
 (async function boot() {
   let ses = null;
   try {
-    ses = (await sb.auth.getSession()).data.session;
+    ses = (await tmo(sb.auth.getSession(), 8000)).data.session;
     if (!ses) {
       const bk = localStorage.getItem("msg_bk");
-      if (bk) ses = (await sb.auth.setSession(JSON.parse(bk))).data.session;
+      if (bk) ses = (await tmo(sb.auth.setSession(JSON.parse(bk)), 8000)).data.session;
     }
   } catch (e) {}
   if (ses) accSave(ses);
   if (!ses) { show("auth"); return; }
-  try { await enter(ses.user); }
+  try { await tmo(enter(ses.user), 20000); }
   catch (e) { show("auth"); $("err").textContent = "Не удалось загрузить данные. Проверьте интернет и обновите страницу."; }
 })();
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
